@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mi Rincón Cozy — Habitación Virtual</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tipografías acogedoras -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- Iconos Phosphor -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <style>
+    * {
+      font-family: 'Nunito', sans-serif;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .font-cozy-title {
+      font-family: 'Lora', serif;
+    }
+
+    .font-cozy-soft {
+      font-family: 'Quicksand', sans-serif;
+    }
+
+    input,
+    textarea,
+    select {
+      user-select: text;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* Superficies acogedoras */
+    .cozy-card-dark {
+      background: linear-gradient(165deg, rgba(33, 27, 45, 0.9) 0%, rgba(20, 17, 29, 0.94) 100%);
+      border: 1px solid rgba(253, 224, 171, 0.18);
+      box-shadow:
+        0 18px 42px -12px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 0 rgba(255, 241, 214, 0.14);
+    }
+
+    .cozy-card-light {
+      background: linear-gradient(165deg, rgba(255, 252, 247, 0.93) 0%, rgba(248, 240, 226, 0.95) 100%);
+      border: 1px solid rgba(166, 118, 72, 0.24);
+      box-shadow:
+        0 18px 36px -12px rgba(88, 60, 36, 0.16),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.88);
+    }
+
+    /* Ambientes predefinidos */
+    .bg-theme-night {
+      background-color: #110e19;
+      background-image:
+        radial-gradient(circle at 50% 44%, rgba(251, 191, 36, 0.16) 0%, rgba(244, 114, 182, 0.05) 36%, rgba(17, 14, 25, 0) 66%),
+        radial-gradient(rgba(255, 236, 200, 0.08) 1px, transparent 1px);
+      background-size: 100% 100%, 26px 26px;
+    }
+
+    .bg-theme-white {
+      background-color: #fbf7ef;
+      background-image:
+        radial-gradient(circle at 50% 35%, rgba(251, 191, 36, 0.14) 0%, transparent 60%),
+        radial-gradient(rgba(168, 130, 96, 0.12) 1px, transparent 1px);
+      background-size: 100% 100%, 24px 24px;
+    }
+
+    .bg-theme-notebook {
+      background-color: #f8f2e4;
+      background-image:
+        linear-gradient(to right, rgba(217, 119, 87, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(217, 119, 87, 0.12) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .bg-theme-lofi {
+      background: linear-gradient(135deg, #241338 0%, #59255c 42%, #ad4e6d 76%, #e89b74 100%);
+    }
+
+    .bg-theme-forest {
+      background: radial-gradient(circle at 30% 25%, #1c5746 0%, #0e2e26 55%, #071915 100%);
+    }
+
+    .bg-theme-coffee {
+      background: radial-gradient(circle at 60% 35%, #543826 0%, #301e14 60%, #1c100b 100%);
+    }
+
+    /* Scrollbar discreta */
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(217, 160, 102, 0.35);
+      border-radius: 9999px;
+    }
+
+    /* Animaciones suaves */
+    @keyframes floatCozy {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .animate-float-cozy {
+      animation: floatCozy 3.6s ease-in-out infinite;
+    }
+
+    @keyframes breatheCozy {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.03);
+      }
+    }
+
+    .animate-breathe {
+      animation: breatheCozy 3.4s ease-in-out infinite;
+    }
+
+    /* Arrastre fluido */
+    .drag-handle {
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .draggable-entity {
+      cursor: grab;
+      touch-action: none;
+      transition: transform 0.12s ease;
+    }
+
+    .draggable-entity:active {
+      cursor: grabbing;
+      transform: scale(1.04);
+    }
+  </style>
+</head>
+<body id="app-body" class="relative w-full h-full overflow-hidden transition-colors duration-500 bg-theme-night text-amber-50">
+
+  <!-- Capa de fondo personalizado (URL o archivo local) -->
+  <div
+    id="custom-bg-image"
+    class="pointer-events-none fixed inset-0 bg-cover bg-center bg-no-repeat opacity-0 transition-opacity duration-500 z-0"
+  ></div>
+
+  <!-- Capa para oscurecer / suavizar el fondo -->
+  <div
+    id="custom-bg-dimmer"
+    class="pointer-events-none fixed inset-0 bg-black opacity-0 transition-opacity duration-300 z-[1]"
+  ></div>
+
+  <!-- Canvas de efectos ambientales (lluvia o luciérnagas) -->
+  <canvas
+    id="ambient-canvas"
+    class="pointer-events-none fixed inset-0 w-full h-full z-[2]"
+  ></canvas>
+
+  <!-- =========================================================
+       CABECERA SUPERIOR DISCRETA ESTILO COZY
+  ========================================================== -->
+  <header
+    id="top-bar"
+    class="glass-surface cozy-card-dark fixed top-3 left-1/2 -translate-x-1/2 z-[900] w-[95%] max-w-5xl px-3.5 sm:px-4 py-2 rounded-3xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2 transition-all duration-300"
+  >
+    <!-- Nombre de la sala editable -->
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-8 h-8 rounded-2xl bg-gradient-to-br from-amber-300/25 to-orange-400/25 border border-amber-300/40 flex items-center justify-center text-amber-300 shrink-0">
+        <i class="ph-fill ph-candle text-base"></i>
+      </div>
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="text-xs font-semibold opacity-65 hidden sm:inline shrink-0">Rincón:</span>
+        <input
+          id="room-name-input"
+          type="text"
+          value="Tarde de Lluvia & Lectura"
+          maxlength="40"
+          aria-label="Nombre de la sala"
+          class="font-cozy-title bg-transparent border-b border-dashed border-current/30 focus:border-amber-300 focus:outline-none text-xs sm:text-sm font-semibold px-1 py-0.5 w-36 sm:w-52 truncate transition-colors"
+        />
+      </div>
+    </div>
+
+    <!-- Controles derechos: Tema rápido, Ambiente y Copiar Enlace -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <button
+        id="quick-theme-btn"
+        type="button"
+        onclick="toggleQuickTheme()"
+        class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
+        title="Cambiar entre tono cálido oscuro y papel crema"
+      >
+        <i id="quick-theme-icon" class="ph-fill ph-sun text-amber-300 text-sm"></i>
+        <span id="quick-theme-label" class="hidden md:inline">Claro</span>
+      </button>
+
+      <button
+        type="button"
+        onclick="togglePanel('panel-bg')"
+        class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
+      >
+        <i class="ph-fill ph-palette text-amber-300 text-sm"></i>
+        <span class="hidden sm:inline">Ambiente</span>
+      </button>
+
+      <button
+        type="button"
+        onclick="copyRoomLink()"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 hover:brightness-105 active:scale-95 transition-all shadow-sm cursor-pointer"
+      >
+        <i class="ph-bold ph-link text-sm"></i>
+        <span>Copiar enlace</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       LIENZO PRINCIPAL DE LA HABITACIÓN
+  ========================================================== -->
+  <main id="room-canvas" class="relative w-full h-full overflow-hidden z-10">
+
+    <!-- Marca de agua ambiental sutil -->
+    <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center opacity-[0.06] select-none">
+      <i class="ph-thin ph-armchair text-8xl sm:text-9xl mb-2"></i>
+      <p class="font-cozy-title text-lg sm:text-xl italic tracking-widest">Mi Rincón Cozy</p>
+    </div>
+
+    <!-- ---------------------------------------------------------
+         WIDGET 1: MINI YOUTUBE CON BUSCADOR Y SUGERENCIAS
+    ---------------------------------------------------------- -->
+    <section
+      id="widget-youtube"
+      style="top: 76px; left: 18px; z-index: 20;"
+      onmousedown="bringToFront(this)"
+      ontouchstart="bringToFront(this)"
+      class="draggable-window glass-surface cozy-card-dark absolute w-[320px] sm:w-[376px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
+    >
+      <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <i class="ph-fill ph-youtube-logo text-base"></i>
+          </span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Mini YouTube</span>
+        </div>
+        <button
+          type="button"
+          onclick="toggleWidget('youtube')"
+          class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+          title="Minimizar"
+        >
+          <i class="ph-bold ph-minus text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Buscador y presets -->
+      <div class="p-2.5 space-y-2 border-b border-current/10">
+        <form onsubmit="handleYoutubeSubmit(event)" class="flex gap-1.5">
+          <div class="relative flex-1">
+            <i class="ph-bold ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-50"></i>
+            <input
+              id="youtube-search-input"
+              type="text"
+              placeholder="Busca música, lofi, lluvia o pega enlace/ID..."
+              class="w-full text-xs pl-7 pr-2.5 py-1.5 rounded-2xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            class="px-3 py-1.5 rounded-2xl bg-gradient-to-r from-rose-400 to-orange-400 hover:brightness-105 text-stone-950 text-xs font-bold transition-all cursor-pointer shrink-0"
+          >
+            Cargar
+          </button>
+        </form>
+
+        <!-- Botones rápidos -->
+        <div class="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-0.5 text-[11px]">
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('jfKfPfyJRdk', 'Lofi Hip Hop Radio 🎧')"
+            class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
+          >
+            🎧 Lofi Hip Hop Radio
+          </button>
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('4xDzrJKXOOY', 'Música para Leer 📖')"
+            class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
+          >
+            📖 Música para Leer
+          </button>
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('mPZkdNFkNps', 'Sonidos de Lluvia 🌧️')"
+            class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
+          >
+            🌧️ Sonidos de Lluvia
+          </button>
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('7NOSDKb0HlU', 'Piano Relajante 🎹')"
+            class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
+          >
+            🎹 Piano Relajante
+          </button>
+        </div>
+
+        <!-- Sugerencias / resultados clicables -->
+        <div id="youtube-suggestions" class="grid grid-cols-2 gap-1.5 pt-0.5 text-[11px]">
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('jfKfPfyJRdk', 'Lofi Hip Hop Radio 🎧')"
+            class="text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer"
+          >
+            ▶ Lofi Beats para Concentrarte
+          </button>
+          <button
+            type="button"
+            onclick="selectYoutubeTrack('mPZkdNFkNps', 'Sonidos de Lluvia 🌧️')"
+            class="text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer"
+          >
+            ▶ Lluvia Suave en Ventana
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenedor del reproductor + fallback seguro -->
+      <div class="relative w-full aspect-video bg-stone-950">
+        <iframe
+          id="youtube-iframe"
+          class="w-full h-full"
+          src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?autoplay=0&rel=0"
+          title="Reproductor de YouTube"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+          onerror="showYoutubeFallback()"
+        ></iframe>
+
+        <div
+          id="youtube-fallback"
+          class="hidden absolute inset-0 bg-stone-950/95 text-amber-50 p-4 flex flex-col items-center justify-center text-center gap-2"
+        >
+          <i class="ph-fill ph-wifi-slash text-2xl text-amber-300"></i>
+          <p class="text-xs font-bold">No se pudo cargar el vídeo insertado</p>
+          <p class="text-[11px] opacity-75 max-w-[250px]">
+            Puede deberse a restricciones del vídeo o a falta de conexión. Elige otro ambiente o abre el enlace directamente.
+          </p>
+          <a
+            id="youtube-external-link"
+            href="https://www.youtube.com/watch?v=jfKfPfyJRdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-1 px-3 py-1.5 rounded-xl bg-amber-300 text-stone-900 text-[11px] font-bold hover:brightness-105"
+          >
+            Abrir en YouTube ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="px-3.5 py-2 text-[11px] opacity-80 flex items-center justify-between bg-amber-200/[0.03]">
+        <span class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span>Sala lista</span>
+        </span>
+        <span id="youtube-now-playing" class="font-bold truncate max-w-[190px]">Lofi Hip Hop Radio 🎧</span>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------
+         WIDGET 2: CRONÓMETRO Y TEMPORIZADOR DUAL
+    ---------------------------------------------------------- -->
+    <section
+      id="widget-timer"
+      style="top: 454px; left: 18px; z-index: 23;"
+      onmousedown="bringToFront(this)"
+      ontouchstart="bringToFront(this)"
+      class="draggable-window glass-surface cozy-card-dark absolute w-[310px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
+    >
+      <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center">
+            <i class="ph-fill ph-hourglass-medium text-base"></i>
+          </span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Tiempo de Lectura</span>
+        </div>
+        <button
+          type="button"
+          onclick="toggleWidget('timer')"
+          class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+          title="Minimizar"
+        >
+          <i class="ph-bold ph-minus text-xs"></i>
+        </button>
+      </div>
+
+      <div class="p-3.5">
+        <!-- Alternar Temporizador / Cronómetro -->
+        <div class="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/20 border border-current/10 mb-3 text-xs">
+          <button
+            id="mode-countdown-btn"
+            type="button"
+            onclick="switchClockMode('countdown')"
+            class="py-1.5 rounded-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 transition-all cursor-pointer"
+          >
+            Temporizador
+          </button>
+          <button
+            id="mode-stopwatch-btn"
+            type="button"
+            onclick="switchClockMode('stopwatch')"
+            class="py-1.5 rounded-xl font-semibold opacity-75 hover:opacity-100 transition-all cursor-pointer"
+          >
+            Cronómetro
+          </button>
+        </div>
+
+        <!-- Pantalla numérica -->
+        <div class="text-center my-2 py-2.5 rounded-2xl bg-amber-300/[0.06] border border-amber-300/15">
+          <div id="clock-display" class="font-cozy-title text-3xl font-semibold tracking-wider tabular-nums text-amber-300">
+            25:00
+          </div>
+          <p id="clock-subtitle" class="text-[11px] opacity-75 mt-0.5">Sesión tranquila de lectura</p>
+        </div>
+
+        <!-- Presets y minutos personalizados -->
+        <div id="countdown-controls" class="mb-3 space-y-1.5">
+          <div class="grid grid-cols-4 gap-1.5">
+            <button type="button" onclick="setCountdownMinutes(15)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">15m</button>
+            <button type="button" onclick="setCountdownMinutes(25)" class="preset-btn py-1.5 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 cursor-pointer">25m</button>
+            <button type="button" onclick="setCountdownMinutes(45)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">45m</button>
+            <button type="button" onclick="setCountdownMinutes(60)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">60m</button>
+          </div>
+          <div class="flex gap-1.5">
+            <input
+              id="custom-mins-input"
+              type="number"
+              min="1"
+              max="360"
+              placeholder="Minutos personalizados (ej. 20)"
+              class="flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
+            />
+            <button
+              type="button"
+              onclick="applyCustomCountdown()"
+              class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border border-current/10 cursor-pointer"
+            >
+              Fijar
+            </button>
+          </div>
+        </div>
+
+        <!-- Botones Iniciar / Pausar / Reiniciar -->
+        <div class="flex gap-2">
+          <button
+            id="clock-start-btn"
+            type="button"
+            onclick="toggleClockRun()"
+            class="flex-1 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-300 to-orange-300 hover:brightness-105 text-stone-900 transition-all cursor-pointer shadow-sm"
+          >
+            Iniciar
+          </button>
+          <button
+            type="button"
+            onclick="resetClock()"
+            class="px-3 py-2 rounded-2xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-current/10 transition-all cursor-pointer"
+            title="Reiniciar"
+          >
+            <i class="ph-bold ph-arrow-counter-clockwise"></i>
+          </button>
+        </div>
+
+        <!-- Contador acumulado del día -->
+        <div class="mt-3 pt-2.5 border-t border-current/10">
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span class="opacity-75 flex items-center gap-1">
+              <i class="ph-fill ph-book-open-text text-amber-300"></i> Acumulado hoy:
+            </span>
+            <span id="today-minutes-badge" class="font-bold text-amber-300">15 min</span>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden">
+            <div id="today-progress-bar" class="h-full rounded-full bg-gradient-to-r from-amber-300 to-orange-400 transition-all duration-500" style="width: 25%;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------
+         WIDGET 3: CHAT DE SALA
+    ---------------------------------------------------------- -->
+    <section
+      id="widget-chat"
+      style="top: 76px; right: 18px; z-index: 21;"
+      onmousedown="bringToFront(this)"
+      ontouchstart="bringToFront(this)"
+      class="draggable-window glass-surface cozy-card-dark absolute w-[305px] sm:w-[330px] rounded-3xl backdrop-blur-xl overflow-hidden flex flex-col transition-shadow duration-300"
+    >
+      <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-xl bg-sky-400/20 text-sky-300 flex items-center justify-center">
+            <i class="ph-fill ph-chats-circle text-base"></i>
+          </span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Chat de Sala</span>
+        </div>
+        <button
+          type="button"
+          onclick="toggleWidget('chat')"
+          class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+          title="Minimizar"
+        >
+          <i class="ph-bold ph-minus text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Nombre de usuario editable -->
+      <div class="px-3 py-1.5 border-b border-current/10 bg-black/10 flex items-center justify-between gap-2 text-[11px]">
+        <span class="opacity-70 shrink-0">Tu apodo:</span>
+        <input
+          id="chat-username-input"
+          type="text"
+          value="Tú"
+          maxlength="18"
+          aria-label="Nombre de usuario en el chat"
+          class="bg-transparent border-b border-dashed border-current/25 focus:border-amber-300 focus:outline-none font-bold text-amber-300 text-right w-32"
+        />
+      </div>
+
+      <!-- Mensajes -->
+      <div id="chat-messages" class="p-3 h-44 overflow-y-auto custom-scroll flex flex-col gap-2 text-xs">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[11px] font-bold text-amber-300 ml-1">Valeria ✨</span>
+          <div class="px-3 py-2 rounded-2xl rounded-tl-sm bg-white/10 border border-white/5 max-w-[85%] leading-relaxed">
+            ¡Qué bonito ha quedado este rincón! Yo ya estoy con mi taza y música suave ☕📖
+          </div>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[11px] font-bold text-emerald-300 ml-1">Sofía 🌿</span>
+          <div class="px-3 py-2 rounded-2xl rounded-tl-sm bg-white/10 border border-white/5 max-w-[85%] leading-relaxed">
+            ¿Ponemos 25 minutitos de lectura antes de charlar? ✨
+          </div>
+        </div>
+      </div>
+
+      <!-- Emojis rápidos -->
+      <div class="px-3 py-1.5 border-t border-current/10 flex items-center justify-between text-sm bg-amber-200/[0.03]">
+        <button type="button" onclick="insertEmoji('📖')" class="hover:scale-125 transition-transform cursor-pointer">📖</button>
+        <button type="button" onclick="insertEmoji('☕')" class="hover:scale-125 transition-transform cursor-pointer">☕</button>
+        <button type="button" onclick="insertEmoji('🎄')" class="hover:scale-125 transition-transform cursor-pointer">🎄</button>
+        <button type="button" onclick="insertEmoji('🎧')" class="hover:scale-125 transition-transform cursor-pointer">🎧</button>
+        <button type="button" onclick="insertEmoji('🕯️')" class="hover:scale-125 transition-transform cursor-pointer">🕯️</button>
+        <button type="button" onclick="insertEmoji('✨')" class="hover:scale-125 transition-transform cursor-pointer">✨</button>
+      </div>
+
+      <!-- Enviar mensaje -->
+      <form onsubmit="sendChatMessage(event)" class="p-2.5 border-t border-current/10 flex gap-1.5">
+        <input
+          id="chat-input"
+          type="text"
+          placeholder="Escribe un mensaje..."
+          class="flex-1 text-xs px-3 py-2 rounded-2xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
+        />
+        <button
+          type="submit"
+          class="w-9 h-9 rounded-2xl bg-gradient-to-r from-amber-300 to-orange-300 hover:brightness-105 text-stone-900 flex items-center justify-center transition-all cursor-pointer shrink-0"
+          title="Enviar"
+        >
+          <i class="ph-bold ph-paper-plane-tilt text-sm"></i>
+        </button>
+      </form>
+    </section>
+
+    <!-- ---------------------------------------------------------
+         WIDGET 4: VIDEOLLAMADA
+    ---------------------------------------------------------- -->
+    <section
+      id="widget-video"
+      style="top: 438px; right: 18px; z-index: 22;"
+      onmousedown="bringToFront(this)"
+      ontouchstart="bringToFront(this)"
+      class="draggable-window glass-surface cozy-card-dark absolute w-[305px] sm:w-[330px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
+    >
+      <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-xl bg-emerald-400/20 text-emerald-300 flex items-center justify-center">
+            <i class="ph-fill ph-video-camera text-base"></i>
+          </span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Videollamada</span>
+        </div>
+        <button
+          type="button"
+          onclick="toggleWidget('video')"
+          class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+          title="Minimizar"
+        >
+          <i class="ph-bold ph-minus text-xs"></i>
+        </button>
+      </div>
+
+      <div class="p-2.5 grid grid-cols-2 gap-2">
+        <!-- Vista de amiga en sala -->
+        <div class="relative aspect-square rounded-2xl bg-gradient-to-br from-rose-950/70 via-amber-950/50 to-stone-900 border border-amber-200/15 flex flex-col items-center justify-center overflow-hidden">
+          <div class="w-11 h-11 rounded-full bg-amber-300/20 border border-amber-300/40 flex items-center justify-center text-2xl animate-float-cozy">
+            👩‍💻
+          </div>
+          <span class="mt-1.5 text-[11px] font-bold text-amber-50">Valeria</span>
+          <span class="text-[10px] text-amber-200/75">Leyendo en sala</span>
+          <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
+        </div>
+
+        <!-- Cámara local -->
+        <div class="relative aspect-square rounded-2xl bg-black/30 border border-current/10 flex flex-col items-center justify-center overflow-hidden">
+          <video id="local-video" autoplay playsinline muted class="hidden w-full h-full object-cover scale-x-[-1]"></video>
+          <div id="local-video-placeholder" class="flex flex-col items-center justify-center text-center p-2">
+            <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg mb-1">🧸</div>
+            <span id="cam-status-note" class="text-[10px] opacity-75 leading-tight">Cámara apagada</span>
+          </div>
+          <span class="absolute bottom-1.5 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/55 text-white font-semibold">Tú</span>
+        </div>
+      </div>
+
+      <div class="px-3 pb-2.5 flex items-center justify-center gap-2">
+        <button
+          id="toggle-cam-btn"
+          type="button"
+          onclick="toggleCamera()"
+          class="flex-1 py-1.5 px-3 rounded-2xl text-xs font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 hover:bg-emerald-400/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+        >
+          <i id="cam-icon" class="ph-bold ph-video-camera"></i>
+          <span id="cam-btn-text">Activar cámara</span>
+        </button>
+        <button
+          id="toggle-mic-btn"
+          type="button"
+          onclick="toggleMic()"
+          class="px-3 py-1.5 rounded-2xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-current/10 flex items-center gap-1 transition-colors cursor-pointer"
+          title="Activar / Silenciar micrófono"
+        >
+          <i id="mic-icon" class="ph-bold ph-microphone"></i>
+          <span id="mic-btn-text" class="text-[11px]">Micro</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PERSONAJE COZY ARRASTRABLE CON VESTIDOR DE ACCESORIOS
+    ========================================================== -->
+    <div
+      id="cozy-character"
+      style="top: 235px; left: 44%; z-index: 35;"
+      onmousedown="bringToFront(this)"
+      ontouchstart="bringToFront(this)"
+      class="draggable-entity absolute flex flex-col items-center"
+      title="Arrastra a tu personaje o abre su vestidor"
+    >
+      <!-- Bocadillo de estado -->
+      <div
+        id="char-status-bubble"
+        class="mb-1 px-3 py-1 rounded-full backdrop-blur-md bg-stone-900/90 text-amber-50 border border-amber-200/25 text-[11px] font-semibold shadow-lg flex items-center gap-1.5 whitespace-nowrap animate-float-cozy"
+      >
+        <span id="char-status-emoji">📖</span>
+        <span id="char-status-text">Leyendo</span>
+      </div>
+
+      <!-- Ilustración SVG combinable -->
+      <div id="char-svg-container" class="w-32 h-32 drop-shadow-2xl animate-breathe"></div>
+
+      <!-- Etiqueta + acceso rápido al vestidor -->
+      <button
+        type="button"
+        onclick="togglePanel('panel-character')"
+        class="mt-1 flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md text-amber-50 text-[11px] font-bold border border-amber-200/25 shadow-md transition-all cursor-pointer"
+      >
+        <span id="char-name-tag">Mi Muñeco</span>
+        <i class="ph-fill ph-sparkle text-amber-300 text-xs"></i>
+      </button>
+    </div>
+
+    <!-- =========================================================
+         CAPA DE OBJETOS DECORATIVOS ("COSITAS")
+    ========================================================== -->
+    <div id="stickers-layer" class="pointer-events-none fixed inset-0"></div>
+
+  </main>
+
+  <!-- =========================================================
+       PANEL 1: SELECTOR DE FONDOS Y AMBIENTES
+  ========================================================== -->
+  <div
+    id="panel-bg"
+    class="room-popover glass-surface cozy-card-dark hidden fixed top-16 left-1/2 -translate-x-1/2 z-[950] w-[93%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[78vh] overflow-y-auto custom-scroll"
+  >
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
+        <i class="ph-fill ph-palette text-base"></i> Fondos y Ambientes
+      </h3>
+      <button
+        type="button"
+        onclick="closeAllPanels()"
+        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+      >
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3.5 text-xs">
+      <button
+        type="button"
+        onclick="applyPresetBg('night')"
+        class="p-2 rounded-2xl border border-white/15 bg-[#110e19] text-amber-50 hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-amber-400/80 shrink-0"></span>
+        <span class="truncate font-semibold">Noche Cálida</span>
+      </button>
+      <button
+        type="button"
+        onclick="applyPresetBg('white')"
+        class="p-2 rounded-2xl border border-amber-200 bg-[#fbf7ef] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-amber-100 border border-stone-300 shrink-0"></span>
+        <span class="truncate font-semibold">Papel Crema</span>
+      </button>
+      <button
+        type="button"
+        onclick="applyPresetBg('notebook')"
+        class="p-2 rounded-2xl border border-orange-200 bg-[#f8f2e4] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-orange-200 border border-orange-300 shrink-0"></span>
+        <span class="truncate font-semibold">Cuadrícula Cozy</span>
+      </button>
+      <button
+        type="button"
+        onclick="applyPresetBg('lofi')"
+        class="p-2 rounded-2xl border border-white/15 bg-gradient-to-r from-[#241338] to-[#ad4e6d] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-pink-400 shrink-0"></span>
+        <span class="truncate font-semibold">Atardecer Lofi</span>
+      </button>
+      <button
+        type="button"
+        onclick="applyPresetBg('forest')"
+        class="p-2 rounded-2xl border border-white/15 bg-[#0e2e26] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-emerald-400 shrink-0"></span>
+        <span class="truncate font-semibold">Bosque Nocturno</span>
+      </button>
+      <button
+        type="button"
+        onclick="applyPresetBg('coffee')"
+        class="p-2 rounded-2xl border border-white/15 bg-[#301e14] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
+      >
+        <span class="w-4 h-4 rounded-full bg-amber-600 shrink-0"></span>
+        <span class="truncate font-semibold">Café Calentito</span>
+      </button>
+    </div>
+
+    <!-- URL de imagen/GIF o archivo local -->
+    <div class="space-y-2.5 pt-2.5 border-t border-current/10">
+      <div class="flex gap-1.5">
+        <input
+          id="custom-bg-url-input"
+          type="text"
+          placeholder="Pega URL de imagen o GIF..."
+          class="flex-1 text-xs px-3 py-2 rounded-2xl bg-black/25 border border-current/15 focus:border-amber-300 focus:outline-none"
+        />
+        <button
+          type="button"
+          onclick="applyCustomBgUrl()"
+          class="px-3.5 py-2 rounded-2xl bg-amber-300 hover:brightness-105 text-stone-900 text-xs font-bold cursor-pointer"
+        >
+          Aplicar
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-current/15 text-xs font-semibold cursor-pointer transition-colors">
+          <i class="ph-bold ph-image text-amber-300"></i>
+          <span>Subir imagen</span>
+          <input type="file" accept="image/*" onchange="handleLocalBgUpload(event)" class="hidden" />
+        </label>
+
+        <div class="flex items-center gap-2 text-xs">
+          <span class="opacity-75">Oscurecer:</span>
+          <input
+            id="bg-dimmer-slider"
+            type="range"
+            min="0"
+            max="80"
+            value="20"
+            oninput="updateBgDimmer(this.value)"
+            class="w-24 accent-amber-300 cursor-pointer"
+          />
+        </div>
+      </div>
+
+      <!-- Efectos animados opcionales -->
+      <div class="pt-2.5 border-t border-current/10 flex flex-wrap items-center justify-between gap-2">
+        <span class="text-xs opacity-80 font-semibold">Efecto animado:</span>
+        <div class="flex gap-1.5 text-xs">
+          <button
+            id="fx-none-btn"
+            type="button"
+            onclick="setAmbientEffect('none')"
+            class="px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
+          >
+            Ninguno
+          </button>
+          <button
+            id="fx-rain-btn"
+            type="button"
+            onclick="setAmbientEffect('rain')"
+            class="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer"
+          >
+            🌧️ Lluvia
+          </button>
+          <button
+            id="fx-fireflies-btn"
+            type="button"
+            onclick="setAmbientEffect('fireflies')"
+            class="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer"
+          >
+            ✨ Luciérnagas
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       PANEL 2: VESTIDOR DEL PERSONAJE COZY
+  ========================================================== -->
+  <div
+    id="panel-character"
+    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[94%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[76vh] overflow-y-auto custom-scroll"
+  >
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
+        <i class="ph-fill ph-coat-hanger text-base"></i> Vestidor de tu Personaje
+      </h3>
+      <button
+        type="button"
+        onclick="closeAllPanels()"
+        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+      >
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+
+    <!-- Tono / color principal -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Tono / color principal:</label>
+      <div class="flex items-center gap-2.5">
+        <button type="button" onclick="setCharColor('#fde68a')" class="w-6 h-6 rounded-full bg-[#fde68a] border-2 border-white cursor-pointer" title="Ámbar crema"></button>
+        <button type="button" onclick="setCharColor('#fdba74')" class="w-6 h-6 rounded-full bg-[#fdba74] border border-white/40 cursor-pointer" title="Melocotón"></button>
+        <button type="button" onclick="setCharColor('#f9a8d4')" class="w-6 h-6 rounded-full bg-[#f9a8d4] border border-white/40 cursor-pointer" title="Rosa suave"></button>
+        <button type="button" onclick="setCharColor('#c4b5fd')" class="w-6 h-6 rounded-full bg-[#c4b5fd] border border-white/40 cursor-pointer" title="Lavanda"></button>
+        <button type="button" onclick="setCharColor('#6ee7b7')" class="w-6 h-6 rounded-full bg-[#6ee7b7] border border-white/40 cursor-pointer" title="Menta"></button>
+        <button type="button" onclick="setCharColor('#93c5fd')" class="w-6 h-6 rounded-full bg-[#93c5fd] border border-white/40 cursor-pointer" title="Cielo"></button>
+      </div>
+    </div>
+
+    <!-- Base del personaje -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Personaje base:</label>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+        <button type="button" onclick="setCharBase('reader')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Lector/a</button>
+        <button type="button" onclick="setCharBase('cat')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🐱 Gatito</button>
+        <button type="button" onclick="setCharBase('bear')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🐻 Osito</button>
+        <button type="button" onclick="setCharBase('ghost')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">👻 Fantasmita</button>
+      </div>
+    </div>
+
+    <!-- Estado con bocadillo -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Estado (bocadillo):</label>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+        <button type="button" onclick="setCharMood('Leyendo', '📖')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Leyendo</button>
+        <button type="button" onclick="setCharMood('Con auriculares', '🎧')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🎧 Auriculares</button>
+        <button type="button" onclick="setCharMood('Tomando café', '☕')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">☕ Café</button>
+        <button type="button" onclick="setCharMood('Durmiendo', '😴')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">😴 Durmiendo</button>
+      </div>
+    </div>
+
+    <!-- Accesorios combinables de cabeza -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Accesorios combinables (puedes poner varios):</label>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+        <button
+          id="acc-santa-btn"
+          type="button"
+          onclick="toggleAccessory('santa')"
+          class="py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
+        >
+          🎅 Gorrito Navidad
+        </button>
+        <button
+          id="acc-glasses-btn"
+          type="button"
+          onclick="toggleAccessory('glasses')"
+          class="py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
+        >
+          🤓 Gafitas redondas
+        </button>
+        <button
+          id="acc-flowers-btn"
+          type="button"
+          onclick="toggleAccessory('flowers')"
+          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
+        >
+          🌸 Corona flores
+        </button>
+        <button
+          id="acc-beret-btn"
+          type="button"
+          onclick="toggleAccessory('beret')"
+          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
+        >
+          🎨 Boina
+        </button>
+        <button
+          id="acc-headphones-btn"
+          type="button"
+          onclick="toggleAccessory('headphones')"
+          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
+        >
+          🎧 Auriculares
+        </button>
+      </div>
+    </div>
+
+    <!-- Complemento en mano -->
+    <div>
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Complemento en mano:</label>
+      <div class="grid grid-cols-3 gap-1.5 text-[11px]">
+        <button type="button" onclick="setCharProp('none')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">✋ Nada</button>
+        <button type="button" onclick="setCharProp('book')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Libro</button>
+        <button type="button" onclick="setCharProp('coffee')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">☕ Taza de café</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       PANEL 3: CATÁLOGO DE DECORACIÓN ("COSITAS")
+  ========================================================== -->
+  <div
+    id="panel-decor"
+    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[92%] max-w-md p-4 rounded-3xl backdrop-blur-xl"
+  >
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
+        <i class="ph-fill ph-armchair text-base"></i> Cositas para la habitación
+      </h3>
+      <button
+        type="button"
+        onclick="closeAllPanels()"
+        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+      >
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+    <p class="text-[11px] opacity-75 mb-2.5">Añade objetos, arrástralos donde quieras o pulsa ✕ / doble clic para quitarlos.</p>
+
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <button type="button" onclick="spawnSticker('🪔', 'Lámpara')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">🪔</span>
+        <span class="text-[11px] font-semibold">Lámpara</span>
+      </button>
+      <button type="button" onclick="spawnSticker('🪴', 'Planta')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">🪴</span>
+        <span class="text-[11px] font-semibold">Planta</span>
+      </button>
+      <button type="button" onclick="spawnSticker('📚', 'Libros')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">📚</span>
+        <span class="text-[11px] font-semibold">Libros</span>
+      </button>
+      <button type="button" onclick="spawnSticker('☕', 'Taza')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">☕</span>
+        <span class="text-[11px] font-semibold">Taza</span>
+      </button>
+      <button type="button" onclick="spawnSticker('🕯️', 'Vela')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">🕯️</span>
+        <span class="text-[11px] font-semibold">Vela</span>
+      </button>
+      <button type="button" onclick="spawnSticker('⭐', 'Estrella / Cojín')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
+        <span class="text-2xl">⭐</span>
+        <span class="text-[11px] font-semibold">Estrella / Cojín</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       BARRA INFERIOR FLOTANTE (DOCK)
+  ========================================================== -->
+  <nav
+    id="bottom-dock"
+    class="glass-surface cozy-card-dark fixed bottom-3 left-1/2 -translate-x-1/2 z-[900] px-2.5 sm:px-3 py-2 rounded-3xl backdrop-blur-xl flex items-center gap-1 sm:gap-1.5 transition-all duration-300 max-w-[96vw] overflow-x-auto custom-scroll"
+  >
+    <button
+      type="button"
+      onclick="toggleWidget('youtube')"
+      id="dock-youtube"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-rose-400 transition-all cursor-pointer shrink-0"
+      title="Mostrar/ocultar Mini YouTube"
+    >
+      <i class="ph-fill ph-youtube-logo text-base"></i>
+      <span class="hidden md:inline">YouTube</span>
+    </button>
+
+    <button
+      type="button"
+      onclick="toggleWidget('timer')"
+      id="dock-timer"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-amber-300 transition-all cursor-pointer shrink-0"
+      title="Mostrar/ocultar Temporizador y Cronómetro"
+    >
+      <i class="ph-fill ph-hourglass-medium text-base"></i>
+      <span class="hidden md:inline">Lectura</span>
+    </button>
+
+    <button
+      type="button"
+      onclick="toggleWidget('chat')"
+      id="dock-chat"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-sky-300 transition-all cursor-pointer shrink-0"
+      title="Mostrar/ocultar Chat"
+    >
+      <i class="ph-fill ph-chats-circle text-base"></i>
+      <span class="hidden md:inline">Chat</span>
+    </button>
+
+    <button
+      type="button"
+      onclick="toggleWidget('video')"
+      id="dock-video"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-emerald-300 transition-all cursor-pointer shrink-0"
+      title="Mostrar/ocultar Videollamada"
+    >
+      <i class="ph-fill ph-video-camera text-base"></i>
+      <span class="hidden md:inline">Video</span>
+    </button>
+
+    <div class="w-px h-6 bg-current/15 mx-0.5 shrink-0"></div>
+
+    <button
+      type="button"
+      onclick="togglePanel('panel-character')"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-amber-300/20 text-amber-200 border border-amber-300/35 hover:brightness-110 transition-all cursor-pointer shrink-0"
+    >
+      <i class="ph-fill ph-coat-hanger text-base text-amber-300"></i>
+      <span>Personaje</span>
+    </button>
+
+    <button
+      type="button"
+      onclick="togglePanel('panel-decor')"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/15 transition-all cursor-pointer shrink-0"
+    >
+      <i class="ph-fill ph-armchair text-base text-orange-300"></i>
+      <span>Cositas</span>
+    </button>
+
+    <button
+      type="button"
+      onclick="togglePanel('panel-bg')"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/15 transition-all cursor-pointer shrink-0"
+    >
+      <i class="ph-fill ph-palette text-base text-pink-300"></i>
+      <span>Fondos</span>
+    </button>
+  </nav>
+
+  <!-- Aviso flotante discreto (sin alert) -->
+  <div
+    id="toast-box"
+    class="fixed top-16 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 rounded-full bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 text-xs font-bold shadow-xl opacity-0 pointer-events-none transition-opacity duration-300"
+  >
+    Listo
+  </div>
+
+  <script>
+    'use strict';
+
+    let highestZ = 50;
+    let isLightTheme = false;
+    let toastTimeout = null;
+
+    function showToast(message) {
+      try {
+        const toast = document.getElementById('toast-box');
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.remove('opacity-0');
+        toast.classList.add('opacity-100');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toast.classList.remove('opacity-100');
+          toast.classList.add('opacity-0');
+        }, 2400);
+      } catch (err) {
+        console.error('Error al mostrar aviso:', err);
+      }
+    }
+
+    function bringToFront(el) {
+      try {
+        if (!el) return;
+        highestZ += 1;
+        el.style.zIndex = String(highestZ);
+      } catch (err) {
+        console.error('Error al traer elemento al frente:', err);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 1. CABECERA, TEMA RÁPIDO Y COPIAR ENLACE CON FALLBACK
+    // ---------------------------------------------------------
+    function syncThemeAppearance(light) {
+      isLightTheme = Boolean(light);
+      const body = document.getElementById('app-body');
+      const surfaces = document.querySelectorAll('.glass-surface');
+      const icon = document.getElementById('quick-theme-icon');
+      const label = document.getElementById('quick-theme-label');
+
+      if (body) {
+        body.classList.toggle('text-stone-800', isLightTheme);
+        body.classList.toggle('text-amber-50', !isLightTheme);
+      }
+
+      surfaces.forEach((surface) => {
+        surface.classList.toggle('cozy-card-light', isLightTheme);
+        surface.classList.toggle('cozy-card-dark', !isLightTheme);
+        surface.classList.toggle('text-stone-800', isLightTheme);
+        surface.classList.toggle('text-amber-50', !isLightTheme);
+      });
+
+      if (icon) {
+        icon.className = isLightTheme
+          ? 'ph-fill ph-moon text-amber-600 text-sm'
+          : 'ph-fill ph-sun text-amber-300 text-sm';
+      }
+      if (label) {
+        label.textContent = isLightTheme ? 'Oscuro' : 'Claro';
+      }
+    }
+
+    function toggleQuickTheme() {
+      const customImg = document.getElementById('custom-bg-image');
+      if (customImg) customImg.classList.add('opacity-0');
+
+      const body = document.getElementById('app-body');
+      if (body) {
+        body.classList.remove(
+          'bg-theme-night', 'bg-theme-white', 'bg-theme-notebook',
+          'bg-theme-lofi', 'bg-theme-forest', 'bg-theme-coffee'
+        );
+        body.classList.add(isLightTheme ? 'bg-theme-night' : 'bg-theme-white');
+      }
+      syncThemeAppearance(!isLightTheme);
+    }
+
+    function copyRoomLink() {
+      try {
+        const roomInput = document.getElementById('room-name-input');
+        const rawName = roomInput && roomInput.value.trim() ? roomInput.value.trim() : 'rincon-cozy';
+        const slug = encodeURIComponent(rawName.toLowerCase().replace(/\s+/g, '-'));
+        const baseUrl = window.location.href && window.location.href.startsWith('http')
+          ? window.location.href.split('#')[0]
+          : 'https://mi-rincon-cozy.app';
+        const shareUrl = `${baseUrl}#sala=${slug}`;
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(shareUrl)
+            .then(() => showToast('🔗 Enlace de la sala copiado'))
+            .catch(() => fallbackCopyText(shareUrl));
+        } else {
+          fallbackCopyText(shareUrl);
+        }
+      } catch (err) {
+        console.error('Error al copiar enlace:', err);
+        showToast('No se pudo copiar automáticamente');
+      }
+    }
+
+    function fallbackCopyText(text) {
+      try {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('🔗 Enlace de la sala copiado');
+      } catch (err) {
+        showToast('Copia la URL desde la barra del navegador');
+      }
+    }
+
+    // ---------------------------------------------------------
+    // PANELES Y VISIBILIDAD DE VENTANAS
+    // ---------------------------------------------------------
+    function closeAllPanels() {
+      document.querySelectorAll('.room-popover').forEach((panel) => {
+        panel.classList.add('hidden');
+      });
+    }
+
+    function togglePanel(panelId) {
+      try {
+        const target = document.getElementById(panelId);
+        if (!target) return;
+        const willOpen = target.classList.contains('hidden');
+        closeAllPanels();
+        if (willOpen) {
+          target.classList.remove('hidden');
+          bringToFront(target);
+        }
+      } catch (err) {
+        console.error('Error al alternar panel:', err);
+      }
+    }
+
+    function toggleWidget(name) {
+      try {
+        const widget = document.getElementById(`widget-${name}`);
+        const dockBtn = document.getElementById(`dock-${name}`);
+        if (!widget) return;
+
+        const isHidden = widget.classList.contains('hidden');
+        widget.classList.toggle('hidden', !isHidden);
+        if (isHidden) bringToFront(widget);
+
+        if (dockBtn) {
+          dockBtn.classList.toggle('opacity-45', !isHidden);
+        }
+      } catch (err) {
+        console.error('Error al alternar ventana:', err);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 2. FONDOS, IMAGEN PERSONALIZADA, OSCURECER Y CANVAS CLIMA
+    // ---------------------------------------------------------
+    function applyPresetBg(themeKey) {
+      try {
+        const body = document.getElementById('app-body');
+        const customImg = document.getElementById('custom-bg-image');
+        const dimmer = document.getElementById('custom-bg-dimmer');
+
+        if (customImg) customImg.classList.add('opacity-0');
+        if (dimmer) dimmer.style.opacity = '0';
+
+        if (body) {
+          body.classList.remove(
+            'bg-theme-night', 'bg-theme-white', 'bg-theme-notebook',
+            'bg-theme-lofi', 'bg-theme-forest', 'bg-theme-coffee'
+          );
+          body.classList.add(`bg-theme-${themeKey}`);
+        }
+
+        const light = themeKey === 'white' || themeKey === 'notebook';
+        syncThemeAppearance(light);
+      } catch (err) {
+        console.error('Error al aplicar fondo:', err);
+      }
+    }
+
+    function applyCustomBgUrl() {
+      try {
+        const input = document.getElementById('custom-bg-url-input');
+        const url = input ? input.value.trim() : '';
+        if (!url) {
+          showToast('Pega primero el enlace de una imagen o GIF');
+          return;
+        }
+        setCustomBackground(url);
+        showToast('🖼️ Fondo personalizado aplicado');
+      } catch (err) {
+        console.error('Error con URL de fondo:', err);
+        showToast('No se pudo cargar esa URL');
+      }
+    }
+
+    function handleLocalBgUpload(event) {
+      try {
+        const file = event && event.target && event.target.files ? event.target.files[0] : null;
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e && e.target && typeof e.target.result === 'string') {
+            setCustomBackground(e.target.result);
+            showToast('📸 Imagen cargada como fondo');
+          }
+        };
+        reader.onerror = () => {
+          showToast('No se pudo leer el archivo seleccionado');
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Error al subir imagen local:', err);
+        showToast('Error al procesar la imagen');
+      }
+    }
+
+    function setCustomBackground(src) {
+      const customImg = document.getElementById('custom-bg-image');
+      const dimmer = document.getElementById('custom-bg-dimmer');
+      const slider = document.getElementById('bg-dimmer-slider');
+      const dimVal = slider ? Number(slider.value) / 100 : 0.2;
+
+      if (customImg) {
+        customImg.style.backgroundImage = `url("${src.replace(/"/g, '%22')}")`;
+        customImg.classList.remove('opacity-0');
+      }
+      if (dimmer) {
+        dimmer.style.opacity = String(dimVal);
+      }
+      syncThemeAppearance(false);
+    }
+
+    function updateBgDimmer(value) {
+      const customImg = document.getElementById('custom-bg-image');
+      const dimmer = document.getElementById('custom-bg-dimmer');
+      if (customImg && !customImg.classList.contains('opacity-0') && dimmer) {
+        dimmer.style.opacity = String(Number(value) / 100);
+      }
+    }
+
+    // Efectos animados en Canvas (Lluvia / Luciérnagas)
+    let ambientEffectMode = 'none';
+    let particles = [];
+
+    function initAmbientCanvas() {
+      const canvas = document.getElementById('ambient-canvas');
+      if (!canvas) return;
+      const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        seedParticles(canvas.width, canvas.height);
+      };
+      resize();
+      window.addEventListener('resize', resize);
+      requestAnimationFrame(renderAmbientCanvas);
+    }
+
+    function seedParticles(w, h) {
+      particles = [];
+      if (ambientEffectMode === 'rain') {
+        for (let i = 0; i < 85; i++) {
+          particles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            len: 10 + Math.random() * 14,
+            speedY: 5 + Math.random() * 6,
+            speedX: -1.2 + Math.random() * 0.8
+          });
+        }
+      } else if (ambientEffectMode === 'fireflies') {
+        for (let i = 0; i < 36; i++) {
+          particles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: 1.8 + Math.random() * 2.6,
+            vx: -0.4 + Math.random() * 0.8,
+            vy: -0.4 + Math.random() * 0.8,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    }
+
+    function setAmbientEffect(mode) {
+      ambientEffectMode = mode;
+      const canvas = document.getElementById('ambient-canvas');
+      if (canvas) {
+        seedParticles(canvas.width, canvas.height);
+      }
+
+      const modes = ['none', 'rain', 'fireflies'];
+      modes.forEach((m) => {
+        const btn = document.getElementById(`fx-${m}-btn`);
+        if (!btn) return;
+        const active = m === mode;
+        btn.className = active
+          ? 'px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer';
+      });
+    }
+
+    function renderAmbientCanvas() {
+      try {
+        const canvas = document.getElementById('ambient-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (ambientEffectMode === 'rain') {
+          ctx.strokeStyle = 'rgba(219, 234, 254, 0.36)';
+          ctx.lineWidth = 1.2;
+          ctx.lineCap = 'round';
+          for (const p of particles) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x + p.speedX * 2, p.y + p.len);
+            ctx.stroke();
+
+            p.x += p.speedX;
+            p.y += p.speedY;
+            if (p.y > canvas.height) {
+              p.y = -20;
+              p.x = Math.random() * canvas.width;
+            }
+            if (p.x < 0) p.x = canvas.width;
+          }
+        } else if (ambientEffectMode === 'fireflies') {
+          for (const f of particles) {
+            f.phase += 0.03;
+            const alpha = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(f.phase));
+            ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(2)})`;
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            f.x += f.vx;
+            f.y += f.vy;
+            if (f.x < 0) f.x = canvas.width;
+            if (f.x > canvas.width) f.x = 0;
+            if (f.y < 0) f.y = canvas.height;
+            if (f.y > canvas.height) f.y = 0;
+          }
+        }
+      } catch (err) {
+        // Evitar detener el bucle ante un error puntual de renderizado
+      }
+      requestAnimationFrame(renderAmbientCanvas);
+    }
+
+    // ---------------------------------------------------------
+    // 3. MINI YOUTUBE CON BUSCADOR, SUGERENCIAS Y FALLBACK
+    // ---------------------------------------------------------
+    const youtubeCatalog = [
+      { id: 'jfKfPfyJRdk', title: 'Lofi Hip Hop Radio 🎧', label: '▶ Lofi Hip Hop Radio' },
+      { id: '4xDzrJKXOOY', title: 'Música para Leer 📖', label: '▶ Música para Leer' },
+      { id: 'mPZkdNFkNps', title: 'Sonidos de Lluvia 🌧️', label: '▶ Sonidos de Lluvia' },
+      { id: '7NOSDKb0HlU', title: 'Piano Relajante 🎹', label: '▶ Piano Relajante' },
+      { id: 'DWcJFNfaw9c', title: 'Chill Lofi Study Beats ✨', label: '▶ Chill Lofi Study' },
+      { id: 'lTRiuFIWV54', title: 'Ambiente Nocturno Cozy 🕯️', label: '▶ Noche Acogedora' }
+    ];
+
+    function extractYoutubeId(text) {
+      if (!text) return null;
+      const clean = text.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return clean;
+      const match = clean.match(
+        /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+      );
+      return match ? match[1] : null;
+    }
+
+    function selectYoutubeTrack(videoId, title) {
+      try {
+        const iframe = document.getElementById('youtube-iframe');
+        const fallback = document.getElementById('youtube-fallback');
+        const nowPlaying = document.getElementById('youtube-now-playing');
+        const extLink = document.getElementById('youtube-external-link');
+
+        if (fallback) fallback.classList.add('hidden');
+        if (iframe) {
+          iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+        }
+        if (nowPlaying) nowPlaying.textContent = title || 'Vídeo de YouTube';
+        if (extLink) extLink.href = `https://www.youtube.com/watch?v=${videoId}`;
+        showToast(`🎶 ${title}`);
+      } catch (err) {
+        console.error('Error al cargar vídeo:', err);
+        showYoutubeFallback();
+      }
+    }
+
+    function renderYoutubeSuggestions(matches) {
+      const container = document.getElementById('youtube-suggestions');
+      if (!container) return;
+      container.innerHTML = '';
+
+      matches.slice(0, 4).forEach((item) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer';
+        btn.textContent = item.label;
+        btn.addEventListener('click', () => selectYoutubeTrack(item.id, item.title));
+        container.appendChild(btn);
+      });
+    }
+
+    function handleYoutubeSubmit(event) {
+      event.preventDefault();
+      try {
+        const input = document.getElementById('youtube-search-input');
+        const query = input ? input.value.trim() : '';
+        if (!query) {
+          showToast('Escribe una palabra clave o pega un enlace/ID');
+          return;
+        }
+
+        const directId = extractYoutubeId(query);
+        if (directId) {
+          selectYoutubeTrack(directId, 'Vídeo personalizado 🎬');
+          return;
+        }
+
+        const qLower = query.toLowerCase();
+        const filtered = youtubeCatalog.filter(
+          (item) => item.title.toLowerCase().includes(qLower) || item.label.toLowerCase().includes(qLower)
+        );
+        const listToShow = filtered.length > 0 ? filtered : youtubeCatalog;
+        renderYoutubeSuggestions(listToShow);
+        selectYoutubeTrack(listToShow[0].id, listToShow[0].title);
+      } catch (err) {
+        console.error('Error en búsqueda de YouTube:', err);
+        showYoutubeFallback();
+      }
+    }
+
+    function showYoutubeFallback() {
+      const fallback = document.getElementById('youtube-fallback');
+      if (fallback) fallback.classList.remove('hidden');
+    }
+
+    // ---------------------------------------------------------
+    // 4. CHAT DE SALA
+    // ---------------------------------------------------------
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function insertEmoji(emoji) {
+      const input = document.getElementById('chat-input');
+      if (!input) return;
+      input.value += emoji;
+      input.focus();
+    }
+
+    function sendChatMessage(event) {
+      event.preventDefault();
+      try {
+        const input = document.getElementById('chat-input');
+        const userInput = document.getElementById('chat-username-input');
+        const box = document.getElementById('chat-messages');
+        if (!input || !box) return;
+
+        const text = input.value.trim();
+        if (!text) return;
+
+        const username = userInput && userInput.value.trim() ? userInput.value.trim() : 'Tú';
+        const row = document.createElement('div');
+        row.className = 'flex flex-col gap-0.5 items-end';
+        row.innerHTML = `
+          <span class="text-[11px] font-bold text-orange-300 mr-1">${escapeHtml(username)}</span>
+          <div class="px-3 py-2 rounded-2xl rounded-tr-sm bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 font-semibold max-w-[85%] leading-relaxed break-words">
+            ${escapeHtml(text)}
+          </div>
+        `;
+        box.appendChild(row);
+        box.scrollTop = box.scrollHeight;
+        input.value = '';
+      } catch (err) {
+        console.error('Error al enviar mensaje:', err);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 5. VIDEOLLAMADA CON GETUSERMEDIA Y MANEJO SEGURO DE ERRORES
+    // ---------------------------------------------------------
+    let localStream = null;
+    let micEnabled = true;
+
+    async function toggleCamera() {
+      const videoEl = document.getElementById('local-video');
+      const placeholder = document.getElementById('local-video-placeholder');
+      const statusNote = document.getElementById('cam-status-note');
+      const btnText = document.getElementById('cam-btn-text');
+
+      try {
+        if (localStream) {
+          localStream.getTracks().forEach((t) => t.stop());
+          localStream = null;
+          if (videoEl) {
+            videoEl.srcObject = null;
+            videoEl.classList.add('hidden');
+          }
+          if (placeholder) placeholder.classList.remove('hidden');
+          if (statusNote) statusNote.textContent = 'Cámara apagada';
+          if (btnText) btnText.textContent = 'Activar cámara';
+          return;
+        }
+
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+          if (statusNote) statusNote.textContent = 'Sin cámara disponible · Vista en sala';
+          showToast('Cámara no disponible en este entorno');
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: micEnabled
+        });
+        localStream = stream;
+
+        if (videoEl) {
+          videoEl.srcObject = stream;
+          videoEl.classList.remove('hidden');
+        }
+        if (placeholder) placeholder.classList.add('hidden');
+        if (btnText) btnText.textContent = 'Apagar cámara';
+        showToast('📷 Cámara activada');
+      } catch (err) {
+        if (statusNote) statusNote.textContent = 'Permiso denegado o sin cámara';
+        showToast('No se pudo acceder a la cámara');
+      }
+    }
+
+    function toggleMic() {
+      micEnabled = !micEnabled;
+      const icon = document.getElementById('mic-icon');
+      const text = document.getElementById('mic-btn-text');
+
+      if (localStream) {
+        localStream.getAudioTracks().forEach((track) => {
+          track.enabled = micEnabled;
+        });
+      }
+
+      if (icon) {
+        icon.className = micEnabled ? 'ph-bold ph-microphone' : 'ph-bold ph-microphone-slash text-rose-400';
+      }
+      if (text) {
+        text.textContent = micEnabled ? 'Micro' : 'Silencio';
+      }
+      showToast(micEnabled ? '🎙️ Micrófono activo' : '🔇 Micrófono silenciado');
+    }
+
+    // ---------------------------------------------------------
+    // 6. CRONÓMETRO Y TEMPORIZADOR DUAL
+    // ---------------------------------------------------------
+    let clockMode = 'countdown';
+    let countdownTotalSeconds = 25 * 60;
+    let clockSeconds = 25 * 60;
+    let clockTimer = null;
+    let accumulatedMinutesToday = 15;
+    let secondsTickForAccum = 0;
+
+    function formatTimeHMS(totalSec) {
+      const safe = Math.max(0, Math.floor(totalSec));
+      const h = Math.floor(safe / 3600);
+      const m = Math.floor((safe % 3600) / 60).toString().padStart(2, '0');
+      const s = (safe % 60).toString().padStart(2, '0');
+      if (clockMode === 'stopwatch') {
+        return `${h.toString().padStart(2, '0')}:${m}:${s}`;
+      }
+      return h > 0 ? `${h.toString().padStart(2, '0')}:${m}:${s}` : `${m}:${s}`;
+    }
+
+    function updateClockDisplay() {
+      const display = document.getElementById('clock-display');
+      if (display) display.textContent = formatTimeHMS(clockSeconds);
+    }
+
+    function updateAccumulatedUI() {
+      const badge = document.getElementById('today-minutes-badge');
+      const bar = document.getElementById('today-progress-bar');
+      if (badge) badge.textContent = `${accumulatedMinutesToday} min`;
+      if (bar) {
+        const pct = Math.min(100, Math.round((accumulatedMinutesToday / 60) * 100));
+        bar.style.width = `${pct}%`;
+      }
+    }
+
+    function switchClockMode(mode) {
+      if (clockTimer) {
+        clearInterval(clockTimer);
+        clockTimer = null;
+      }
+      clockMode = mode;
+      const startBtn = document.getElementById('clock-start-btn');
+      if (startBtn) startBtn.textContent = 'Iniciar';
+
+      const btnCount = document.getElementById('mode-countdown-btn');
+      const btnStop = document.getElementById('mode-stopwatch-btn');
+      const controls = document.getElementById('countdown-controls');
+      const subtitle = document.getElementById('clock-subtitle');
+
+      if (mode === 'countdown') {
+        if (btnCount) btnCount.className = 'py-1.5 rounded-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 transition-all cursor-pointer';
+        if (btnStop) btnStop.className = 'py-1.5 rounded-xl font-semibold opacity-75 hover:opacity-100 transition-all cursor-pointer';
+        if (controls) controls.classList.remove('hidden');
+        if (subtitle) subtitle.textContent = 'Sesión tranquila de lectura';
+        clockSeconds = countdownTotalSeconds;
+      } else {
+        if (btnStop) btnStop.className = 'py-1.5 rounded-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 transition-all cursor-pointer';
+        if (btnCount) btnCount.className = 'py-1.5 rounded-xl font-semibold opacity-75 hover:opacity-100 transition-all cursor-pointer';
+        if (controls) controls.classList.add('hidden');
+        if (subtitle) subtitle.textContent = 'Cronómetro libre en sala';
+        clockSeconds = 0;
+      }
+      updateClockDisplay();
+    }
+
+    function setCountdownMinutes(mins) {
+      if (clockTimer) {
+        clearInterval(clockTimer);
+        clockTimer = null;
+      }
+      countdownTotalSeconds = mins * 60;
+      clockSeconds = countdownTotalSeconds;
+      const startBtn = document.getElementById('clock-start-btn');
+      if (startBtn) startBtn.textContent = 'Iniciar';
+      updateClockDisplay();
+
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        const isCurrent = btn.textContent.trim() === `${mins}m`;
+        btn.className = isCurrent
+          ? 'preset-btn py-1.5 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 cursor-pointer'
+          : 'preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer';
+      });
+    }
+
+    function applyCustomCountdown() {
+      const input = document.getElementById('custom-mins-input');
+      const val = input ? parseInt(input.value, 10) : NaN;
+      if (!Number.isNaN(val) && val >= 1 && val <= 360) {
+        setCountdownMinutes(val);
+        showToast(`⏱️ Temporizador fijado en ${val} min`);
+      } else {
+        showToast('Introduce entre 1 y 360 minutos');
+      }
+    }
+
+    function playGentleChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(528, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.1);
+      } catch (err) {
+        // Ignorar si el audio está bloqueado
+      }
+    }
+
+    function toggleClockRun() {
+      const startBtn = document.getElementById('clock-start-btn');
+      if (clockTimer) {
+        clearInterval(clockTimer);
+        clockTimer = null;
+        if (startBtn) startBtn.textContent = 'Reanudar';
+        return;
+      }
+
+      if (startBtn) startBtn.textContent = 'Pausar';
+      clockTimer = setInterval(() => {
+        secondsTickForAccum += 1;
+        if (secondsTickForAccum >= 60) {
+          secondsTickForAccum = 0;
+          accumulatedMinutesToday += 1;
+          updateAccumulatedUI();
+        }
+
+        if (clockMode === 'countdown') {
+          if (clockSeconds > 0) {
+            clockSeconds -= 1;
+            updateClockDisplay();
+          } else {
+            clearInterval(clockTimer);
+            clockTimer = null;
+            if (startBtn) startBtn.textContent = 'Iniciar';
+            playGentleChime();
+            showToast('🔔 ¡Tiempo de sesión completado!');
+          }
+        } else {
+          clockSeconds += 1;
+          updateClockDisplay();
+        }
+      }, 1000);
+    }
+
+    function resetClock() {
+      if (clockTimer) {
+        clearInterval(clockTimer);
+        clockTimer = null;
+      }
+      const startBtn = document.getElementById('clock-start-btn');
+      if (startBtn) startBtn.textContent = 'Iniciar';
+      clockSeconds = clockMode === 'countdown' ? countdownTotalSeconds : 0;
+      updateClockDisplay();
+    }
+
+    // ---------------------------------------------------------
+    // 7. PERSONAJE COZY SVG CON VESTIDOR COMBINABLE
+    // ---------------------------------------------------------
+    const charState = {
+      base: 'reader', // 'reader' | 'cat' | 'bear' | 'ghost'
+      color: '#fde68a',
+      moodText: 'Leyendo',
+      moodEmoji: '📖',
+      accessories: {
+        santa: true,
+        glasses: true,
+        flowers: false,
+        beret: false,
+        headphones: false
+      },
+      prop: 'book' // 'none' | 'book' | 'coffee'
+    };
+
+    function renderCharacter() {
+      const container = document.getElementById('char-svg-container');
+      const bubbleText = document.getElementById('char-status-text');
+      const bubbleEmoji = document.getElementById('char-status-emoji');
+      if (!container) return;
+
+      if (bubbleText) bubbleText.textContent = charState.moodText;
+      if (bubbleEmoji) bubbleEmoji.textContent = charState.moodEmoji;
+
+      const c = charState.color;
+      const b = charState.base;
+      const acc = charState.accessories;
+
+      let ears = '';
+      if (b === 'cat') {
+        ears = `
+          <polygon points="30,44 21,14 48,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+          <polygon points="90,44 99,14 72,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+          <polygon points="32,40 27,21 44,31" fill="#fda4af"/>
+          <polygon points="88,40 93,21 76,31" fill="#fda4af"/>
+        `;
+      } else if (b === 'bear') {
+        ears = `
+          <circle cx="31" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
+          <circle cx="89" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
+          <circle cx="31" cy="30" r="5.5" fill="#fda4af"/>
+          <circle cx="89" cy="30" r="5.5" fill="#fda4af"/>
+        `;
+      }
+
+      const body = b === 'ghost'
+        ? `<path d="M28,64 C28,28 92,28 92,64 L92,106 L78,96 L60,108 L42,96 L28,106 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>`
+        : `<rect x="28" y="28" width="64" height="68" rx="31" fill="${b === 'reader' ? '#ffedd5' : c}" stroke="#292524" stroke-width="3"/>
+           <path d="M33,90 Q60,78 87,90 L91,110 L29,110 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>`;
+
+      let eyes = '';
+      if (charState.moodText === 'Durmiendo') {
+        eyes = `
+          <path d="M42,56 Q48,62 54,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <path d="M66,56 Q72,62 78,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+        `;
+      } else {
+        eyes = `
+          <circle cx="48" cy="55" r="4" fill="#292524"/>
+          <circle cx="72" cy="55" r="4" fill="#292524"/>
+          <circle cx="49.5" cy="53.5" r="1.4" fill="#ffffff"/>
+          <circle cx="73.5" cy="53.5" r="1.4" fill="#ffffff"/>
+        `;
+      }
+
+      const glassesSvg = acc.glasses ? `
+        <circle cx="48" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
+        <circle cx="72" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
+        <line x1="57.5" y1="55" x2="62.5" y2="55" stroke="#78350f" stroke-width="2.5"/>
+      ` : '';
+
+      const headphonesSvg = acc.headphones ? `
+        <path d="M23,54 C23,18 97,18 97,54" fill="none" stroke="#44403c" stroke-width="5.5" stroke-linecap="round"/>
+        <rect x="17" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
+        <rect x="92" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
+      ` : '';
+
+      const flowersSvg = acc.flowers ? `
+        <circle cx="40" cy="28" r="5.5" fill="#fda4af" stroke="#292524" stroke-width="2"/>
+        <circle cx="40" cy="28" r="2" fill="#fde047"/>
+        <circle cx="60" cy="25" r="6" fill="#ffffff" stroke="#292524" stroke-width="2"/>
+        <circle cx="60" cy="25" r="2" fill="#fb923c"/>
+        <circle cx="80" cy="28" r="5.5" fill="#c4b5fd" stroke="#292524" stroke-width="2"/>
+        <circle cx="80" cy="28" r="2" fill="#fde047"/>
+      ` : '';
+
+      const beretSvg = acc.beret ? `
+        <ellipse cx="62" cy="25" rx="27" ry="10.5" transform="rotate(-10 62 25)" fill="#d97757" stroke="#292524" stroke-width="2.8"/>
+        <line x1="65" y1="15" x2="68" y2="10" stroke="#292524" stroke-width="2.8" stroke-linecap="round"/>
+      ` : '';
+
+      const santaSvg = acc.santa ? `
+        <path d="M32,33 C42,6 76,6 96,26 C88,28 84,33 84,33 Z" fill="#ef4444" stroke="#292524" stroke-width="2.8" stroke-linejoin="round"/>
+        <rect x="29" y="28" width="60" height="10" rx="5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
+        <circle cx="97" cy="27" r="6.5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
+      ` : '';
+
+      let propSvg = '';
+      if (charState.prop === 'book') {
+        propSvg = `
+          <path d="M36,80 L60,85 L84,80 L84,103 L60,108 L36,103 Z" fill="#fef3c7" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
+          <line x1="60" y1="85" x2="60" y2="108" stroke="#292524" stroke-width="2"/>
+        `;
+      } else if (charState.prop === 'coffee') {
+        propSvg = `
+          <rect x="47" y="81" width="26" height="21" rx="6" fill="#fffbeb" stroke="#292524" stroke-width="2.5"/>
+          <path d="M73,85 Q81,85 81,91 Q81,97 73,97" fill="none" stroke="#292524" stroke-width="2.5"/>
+          <path d="M55,75 Q53,70 56,66" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+          <path d="M64,75 Q62,70 65,66" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+        `;
+      }
+
+      container.innerHTML = `
+        <svg viewBox="0 0 120 118" class="w-full h-full overflow-visible">
+          ${ears}
+          ${body}
+          <ellipse cx="40" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.6"/>
+          <ellipse cx="80" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.6"/>
+          ${eyes}
+          ${glassesSvg}
+          <path d="M56,64 Q60,68 64,64" fill="none" stroke="#292524" stroke-width="2.5" stroke-linecap="round"/>
+          ${flowersSvg}
+          ${beretSvg}
+          ${santaSvg}
+          ${headphonesSvg}
+          ${propSvg}
+        </svg>
+      `;
+    }
+
+    function setCharColor(hex) {
+      charState.color = hex;
+      renderCharacter();
+    }
+
+    function setCharBase(base) {
+      charState.base = base;
+      document.querySelectorAll('.char-base-btn').forEach((btn) => {
+        const active = btn.getAttribute('onclick').includes(`'${base}'`);
+        btn.className = active
+          ? 'char-base-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+      });
+      renderCharacter();
+    }
+
+    function setCharMood(text, emoji) {
+      charState.moodText = text;
+      charState.moodEmoji = emoji;
+      document.querySelectorAll('.char-mood-btn').forEach((btn) => {
+        const active = btn.getAttribute('onclick').includes(`'${text}'`);
+        btn.className = active
+          ? 'char-mood-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+      });
+      renderCharacter();
+    }
+
+    function toggleAccessory(key) {
+      if (!(key in charState.accessories)) return;
+      charState.accessories[key] = !charState.accessories[key];
+      const btn = document.getElementById(`acc-${key}-btn`);
+      if (btn) {
+        const on = charState.accessories[key];
+        btn.className = on
+          ? 'py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+      }
+      renderCharacter();
+    }
+
+    function setCharProp(prop) {
+      charState.prop = prop;
+      document.querySelectorAll('.char-prop-btn').forEach((btn) => {
+        const active = btn.getAttribute('onclick').includes(`'${prop}'`);
+        btn.className = active
+          ? 'char-prop-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+      });
+      renderCharacter();
+    }
+
+    // ---------------------------------------------------------
+    // 8. DECORACIÓN ("COSITAS") Y ARRASTRE SEGURO (RATÓN + TÁCTIL)
+    // ---------------------------------------------------------
+    function spawnSticker(emoji, label, customX = null, customY = null) {
+      try {
+        const layer = document.getElementById('stickers-layer');
+        if (!layer) return;
+
+        highestZ += 1;
+        const item = document.createElement('div');
+        const startX = customX !== null ? customX : Math.max(40, Math.min(window.innerWidth - 110, window.innerWidth * 0.48 + (Math.random() * 120 - 60)));
+        const startY = customY !== null ? customY : Math.max(80, Math.min(window.innerHeight - 160, window.innerHeight * 0.54 + (Math.random() * 100 - 50)));
+
+        item.style.left = `${startX}px`;
+        item.style.top = `${startY}px`;
+        item.style.zIndex = String(highestZ);
+        item.className = 'draggable-entity pointer-events-auto absolute group flex flex-col items-center p-2 rounded-2xl hover:bg-white/5';
+        item.title = `${label} · Arrastra o haz doble clic para quitar`;
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'opacity-0 group-hover:opacity-100 absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center shadow transition-opacity cursor-pointer';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Eliminar';
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          item.remove();
+        });
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'text-5xl sm:text-6xl drop-shadow-lg select-none';
+        iconSpan.textContent = emoji;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity';
+        nameSpan.textContent = label;
+
+        item.appendChild(delBtn);
+        item.appendChild(iconSpan);
+        item.appendChild(nameSpan);
+        item.addEventListener('dblclick', () => item.remove());
+        item.addEventListener('mousedown', () => bringToFront(item));
+        item.addEventListener('touchstart', () => bringToFront(item), { passive: true });
+
+        layer.appendChild(item);
+        enableDrag(item, item);
+      } catch (err) {
+        console.error('Error al añadir objeto decorativo:', err);
+      }
+    }
+
+    function enableDrag(handleEl, targetEl) {
+      if (!handleEl || !targetEl) return;
+
+      let active = false;
+      let startX = 0;
+      let startY = 0;
+      let origLeft = 0;
+      let origTop = 0;
+
+      const clampPosition = (left, top) => {
+        const rect = targetEl.getBoundingClientRect();
+        const w = rect.width || 120;
+        const h = rect.height || 80;
+        const maxLeft = Math.max(8, window.innerWidth - w - 8);
+        const maxTop = Math.max(64, window.innerHeight - h - 72);
+        return {
+          left: Math.min(Math.max(8, left), maxLeft),
+          top: Math.min(Math.max(64, top), maxTop)
+        };
+      };
+
+      const onPointerDown = (e) => {
+        if (e.target && e.target.closest('button, input, textarea, select, a, iframe')) return;
+        const point = e.touches && e.touches[0] ? e.touches[0] : e;
+        if (!point) return;
+
+        active = true;
+        bringToFront(targetEl);
+
+        const rect = targetEl.getBoundingClientRect();
+        targetEl.style.left = `${rect.left}px`;
+        targetEl.style.top = `${rect.top}px`;
+        targetEl.style.right = 'auto';
+        targetEl.style.bottom = 'auto';
+
+        origLeft = rect.left;
+        origTop = rect.top;
+        startX = point.clientX;
+        startY = point.clientY;
+      };
+
+      const onPointerMove = (e) => {
+        if (!active) return;
+        const point = e.touches && e.touches[0] ? e.touches[0] : e;
+        if (!point) return;
+
+        if (e.cancelable) e.preventDefault();
+        const dx = point.clientX - startX;
+        const dy = point.clientY - startY;
+        const clamped = clampPosition(origLeft + dx, origTop + dy);
+        targetEl.style.left = `${clamped.left}px`;
+        targetEl.style.top = `${clamped.top}px`;
+      };
+
+      const onPointerUp = () => {
+        active = false;
+      };
+
+      handleEl.addEventListener('mousedown', onPointerDown);
+      window.addEventListener('mousemove', onPointerMove);
+      window.addEventListener('mouseup', onPointerUp);
+
+      handleEl.addEventListener('touchstart', onPointerDown, { passive: true });
+      window.addEventListener('touchmove', onPointerMove, { passive: false });
+      window.addEventListener('touchend', onPointerUp);
+    }
+
+    function keepElementsInViewport() {
+      document.querySelectorAll('.draggable-window, .draggable-entity').forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const w = rect.width || 100;
+        const h = rect.height || 80;
+        const maxLeft = Math.max(8, window.innerWidth - w - 8);
+        const maxTop = Math.max(64, window.innerHeight - h - 72);
+        if (rect.left > maxLeft) el.style.left = `${maxLeft}px`;
+        if (rect.top > maxTop) el.style.top = `${maxTop}px`;
+        if (rect.top < 64) el.style.top = '64px';
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        document.querySelectorAll('.draggable-window').forEach((win) => {
+          const handle = win.querySelector('.drag-handle');
+          enableDrag(handle || win, win);
+        });
+
+        const charEl = document.getElementById('cozy-character');
+        if (charEl) enableDrag(charEl, charEl);
+
+        renderCharacter();
+        updateClockDisplay();
+        updateAccumulatedUI();
+        initAmbientCanvas();
+
+        spawnSticker('🪔', 'Lámpara', Math.max(120, window.innerWidth * 0.36), Math.max(120, window.innerHeight * 0.25));
+        spawnSticker('🪴', 'Planta', Math.max(120, window.innerWidth * 0.38), Math.max(160, window.innerHeight * 0.56));
+        spawnSticker('🕯️', 'Vela', Math.max(120, window.innerWidth * 0.58), Math.max(160, window.innerHeight * 0.54));
+
+        window.addEventListener('resize', keepElementsInViewport);
+      } catch (err) {
+        console.error('Error al inicializar Mi Rincón Cozy:', err);
+      }
+    });
+  </script>
+</body>
+</html>
