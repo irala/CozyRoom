@@ -15,6 +15,9 @@
   />
   <!-- Iconos Phosphor -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Firebase SDK v10 Compat (CDN sin necesidad de compilador) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <style>
     * {
@@ -49,7 +52,7 @@
 
     /* Superficies acogedoras */
     .cozy-card-dark {
-      background: linear-gradient(165deg, rgba(33, 27, 45, 0.9) 0%, rgba(20, 17, 29, 0.94) 100%);
+      background: linear-gradient(165deg, rgba(33, 27, 46, 0.91) 0%, rgba(20, 17, 30, 0.95) 100%);
       border: 1px solid rgba(253, 224, 171, 0.18);
       box-shadow:
         0 18px 42px -12px rgba(0, 0, 0, 0.65),
@@ -57,14 +60,14 @@
     }
 
     .cozy-card-light {
-      background: linear-gradient(165deg, rgba(255, 252, 247, 0.93) 0%, rgba(248, 240, 226, 0.95) 100%);
+      background: linear-gradient(165deg, rgba(255, 252, 247, 0.94) 0%, rgba(248, 240, 226, 0.96) 100%);
       border: 1px solid rgba(166, 118, 72, 0.24);
       box-shadow:
         0 18px 36px -12px rgba(88, 60, 36, 0.16),
         inset 0 1px 0 0 rgba(255, 255, 255, 0.88);
     }
 
-    /* Ambientes predefinidos */
+    /* 6 Fondos predefinidos */
     .bg-theme-night {
       background-color: #110e19;
       background-image:
@@ -120,7 +123,7 @@
         transform: translateY(0px);
       }
       50% {
-        transform: translateY(-5px);
+        transform: translateY(-4px);
       }
     }
 
@@ -171,63 +174,83 @@
     class="pointer-events-none fixed inset-0 bg-cover bg-center bg-no-repeat opacity-0 transition-opacity duration-500 z-0"
   ></div>
 
-  <!-- Capa para oscurecer / suavizar el fondo -->
+  <!-- Capa de oscurecimiento del fondo -->
   <div
     id="custom-bg-dimmer"
     class="pointer-events-none fixed inset-0 bg-black opacity-0 transition-opacity duration-300 z-[1]"
   ></div>
 
-  <!-- Canvas de efectos ambientales (lluvia o luciérnagas) -->
+  <!-- Canvas de partículas ambientales (Lluvia o Luciérnagas) -->
   <canvas
     id="ambient-canvas"
     class="pointer-events-none fixed inset-0 w-full h-full z-[2]"
   ></canvas>
 
   <!-- =========================================================
-       CABECERA SUPERIOR DISCRETA ESTILO COZY
+       BARRA SUPERIOR MINIMALISTA
   ========================================================== -->
   <header
     id="top-bar"
     class="glass-surface cozy-card-dark fixed top-3 left-1/2 -translate-x-1/2 z-[900] w-[95%] max-w-5xl px-3.5 sm:px-4 py-2 rounded-3xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2 transition-all duration-300"
   >
-    <!-- Nombre de la sala editable -->
     <div class="flex items-center gap-2 min-w-0">
       <div class="w-8 h-8 rounded-2xl bg-gradient-to-br from-amber-300/25 to-orange-400/25 border border-amber-300/40 flex items-center justify-center text-amber-300 shrink-0">
         <i class="ph-fill ph-candle text-base"></i>
       </div>
       <div class="flex items-center gap-1.5 min-w-0">
-        <span class="text-xs font-semibold opacity-65 hidden sm:inline shrink-0">Rincón:</span>
+        <span class="text-xs font-semibold opacity-65 hidden sm:inline shrink-0">Sala:</span>
         <input
           id="room-name-input"
           type="text"
-          value="Tarde de Lluvia & Lectura"
-          maxlength="40"
-          aria-label="Nombre de la sala"
-          class="font-cozy-title bg-transparent border-b border-dashed border-current/30 focus:border-amber-300 focus:outline-none text-xs sm:text-sm font-semibold px-1 py-0.5 w-36 sm:w-52 truncate transition-colors"
+          value="sala-principal"
+          maxlength="32"
+          aria-label="Código de la sala"
+          placeholder="codigo-de-sala"
+          onkeydown="if(event.key==='Enter'){ switchRoomByInput(); }"
+          class="font-cozy-title bg-transparent border-b border-dashed border-current/30 focus:border-amber-300 focus:outline-none text-xs sm:text-sm font-semibold px-1 py-0.5 w-28 sm:w-40 truncate transition-colors"
         />
+        <button
+          type="button"
+          onclick="switchRoomByInput()"
+          class="px-2 py-1 rounded-xl text-[11px] font-bold bg-white/10 hover:bg-white/20 border border-current/15 transition-colors cursor-pointer shrink-0"
+          title="Entrar o crear esta sala"
+        >
+          Ir
+        </button>
       </div>
     </div>
 
-    <!-- Controles derechos: Tema rápido, Ambiente y Copiar Enlace -->
     <div class="flex items-center gap-1.5 sm:gap-2">
+      <span id="firebase-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-400/25 text-amber-300 text-[11px] font-bold">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+        <span>Conectando...</span>
+      </span>
+
+      <span id="room-members-badge" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/25 text-emerald-300 text-[11px] font-bold">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>1 en sala</span>
+      </span>
+
+      <button
+        id="ambient-audio-btn"
+        type="button"
+        onclick="toggleAmbientAudio()"
+        class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
+        title="Sonido ambiental relajante (Lluvia / Chimenea)"
+      >
+        <i id="ambient-audio-icon" class="ph-fill ph-speaker-slash text-amber-300 text-sm"></i>
+        <span id="ambient-audio-label" class="hidden lg:inline">Sonido</span>
+      </button>
+
       <button
         id="quick-theme-btn"
         type="button"
         onclick="toggleQuickTheme()"
         class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
-        title="Cambiar entre tono cálido oscuro y papel crema"
+        title="Alternar tema claro / oscuro"
       >
         <i id="quick-theme-icon" class="ph-fill ph-sun text-amber-300 text-sm"></i>
-        <span id="quick-theme-label" class="hidden md:inline">Claro</span>
-      </button>
-
-      <button
-        type="button"
-        onclick="togglePanel('panel-bg')"
-        class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
-      >
-        <i class="ph-fill ph-palette text-amber-300 text-sm"></i>
-        <span class="hidden sm:inline">Ambiente</span>
+        <span id="quick-theme-label" class="hidden sm:inline">Claro</span>
       </button>
 
       <button
@@ -236,7 +259,8 @@
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 hover:brightness-105 active:scale-95 transition-all shadow-sm cursor-pointer"
       >
         <i class="ph-bold ph-link text-sm"></i>
-        <span>Copiar enlace</span>
+        <span class="hidden sm:inline">Copiar enlace de sala</span>
+        <span class="sm:hidden">Invitar</span>
       </button>
     </div>
   </header>
@@ -253,7 +277,7 @@
     </div>
 
     <!-- ---------------------------------------------------------
-         WIDGET 1: MINI YOUTUBE CON BUSCADOR Y SUGERENCIAS
+         VENTANA 1: MINI YOUTUBE CON BUSCADOR Y AMBIENTES
     ---------------------------------------------------------- -->
     <section
       id="widget-youtube"
@@ -279,7 +303,7 @@
         </button>
       </div>
 
-      <!-- Buscador y presets -->
+      <!-- Buscador y accesos rápidos -->
       <div class="p-2.5 space-y-2 border-b border-current/10">
         <form onsubmit="handleYoutubeSubmit(event)" class="flex gap-1.5">
           <div class="relative flex-1">
@@ -287,7 +311,7 @@
             <input
               id="youtube-search-input"
               type="text"
-              placeholder="Busca música, lofi, lluvia o pega enlace/ID..."
+              placeholder="Busca música (ej. lofi lluvia) o pega enlace..."
               class="w-full text-xs pl-7 pr-2.5 py-1.5 rounded-2xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
             />
           </div>
@@ -295,62 +319,47 @@
             type="submit"
             class="px-3 py-1.5 rounded-2xl bg-gradient-to-r from-rose-400 to-orange-400 hover:brightness-105 text-stone-950 text-xs font-bold transition-all cursor-pointer shrink-0"
           >
-            Cargar
+            Buscar
           </button>
         </form>
 
-        <!-- Botones rápidos -->
+        <!-- Botones rápidos de ambientes -->
         <div class="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-0.5 text-[11px]">
           <button
             type="button"
-            onclick="selectYoutubeTrack('jfKfPfyJRdk', 'Lofi Hip Hop Radio 🎧')"
+            onclick="selectYoutubeTrack('jfKfPfyJRdk', 'Lofi Girl 🎧', true)"
             class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
           >
-            🎧 Lofi Hip Hop Radio
+            🎧 Lofi Girl
           </button>
           <button
             type="button"
-            onclick="selectYoutubeTrack('4xDzrJKXOOY', 'Música para Leer 📖')"
+            onclick="selectYoutubeTrack('mPZkdNFkNps', 'Lluvia y Chimenea 🔥', true)"
             class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
           >
-            📖 Música para Leer
+            🌧️ Lluvia y Chimenea
           </button>
           <button
             type="button"
-            onclick="selectYoutubeTrack('mPZkdNFkNps', 'Sonidos de Lluvia 🌧️')"
+            onclick="selectYoutubeTrack('7NOSDKb0HlU', 'Piano Estudio 🎹', true)"
             class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
           >
-            🌧️ Sonidos de Lluvia
+            🎹 Piano Estudio
           </button>
           <button
             type="button"
-            onclick="selectYoutubeTrack('7NOSDKb0HlU', 'Piano Relajante 🎹')"
+            onclick="selectYoutubeTrack('lTRiuFIWV54', 'Ghibli Relax ✨', true)"
             class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-amber-300/25 border border-current/10 whitespace-nowrap transition-colors cursor-pointer"
           >
-            🎹 Piano Relajante
+            🌿 Ghibli Relax
           </button>
         </div>
 
-        <!-- Sugerencias / resultados clicables -->
-        <div id="youtube-suggestions" class="grid grid-cols-2 gap-1.5 pt-0.5 text-[11px]">
-          <button
-            type="button"
-            onclick="selectYoutubeTrack('jfKfPfyJRdk', 'Lofi Hip Hop Radio 🎧')"
-            class="text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer"
-          >
-            ▶ Lofi Beats para Concentrarte
-          </button>
-          <button
-            type="button"
-            onclick="selectYoutubeTrack('mPZkdNFkNps', 'Sonidos de Lluvia 🌧️')"
-            class="text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer"
-          >
-            ▶ Lluvia Suave en Ventana
-          </button>
-        </div>
+        <!-- Resultados filtrados -->
+        <div id="youtube-suggestions" class="grid grid-cols-2 gap-1.5 text-[11px]"></div>
       </div>
 
-      <!-- Contenedor del reproductor + fallback seguro -->
+      <!-- Reproductor 16:9 con fallback -->
       <div class="relative w-full aspect-video bg-stone-950">
         <iframe
           id="youtube-iframe"
@@ -367,10 +376,10 @@
           id="youtube-fallback"
           class="hidden absolute inset-0 bg-stone-950/95 text-amber-50 p-4 flex flex-col items-center justify-center text-center gap-2"
         >
-          <i class="ph-fill ph-wifi-slash text-2xl text-amber-300"></i>
-          <p class="text-xs font-bold">No se pudo cargar el vídeo insertado</p>
+          <i class="ph-fill ph-music-notes-simple text-2xl text-amber-300"></i>
+          <p class="text-xs font-bold">Este vídeo no permite reproducción incrustada</p>
           <p class="text-[11px] opacity-75 max-w-[250px]">
-            Puede deberse a restricciones del vídeo o a falta de conexión. Elige otro ambiente o abre el enlace directamente.
+            Puedes abrirlo en una pestaña nueva o elegir otro ambiente cozy de arriba.
           </p>
           <a
             id="youtube-external-link"
@@ -387,28 +396,28 @@
       <div class="px-3.5 py-2 text-[11px] opacity-80 flex items-center justify-between bg-amber-200/[0.03]">
         <span class="flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span>Sala lista</span>
+          <span>Sincronizado</span>
         </span>
-        <span id="youtube-now-playing" class="font-bold truncate max-w-[190px]">Lofi Hip Hop Radio 🎧</span>
+        <span id="youtube-now-playing" class="font-bold truncate max-w-[200px]">Lofi Girl 🎧</span>
       </div>
     </section>
 
     <!-- ---------------------------------------------------------
-         WIDGET 2: CRONÓMETRO Y TEMPORIZADOR DUAL
+         VENTANA 2: CRONÓMETRO Y TEMPORIZADOR DE LECTURA
     ---------------------------------------------------------- -->
     <section
       id="widget-timer"
-      style="top: 454px; left: 18px; z-index: 23;"
+      style="top: 472px; left: 18px; z-index: 23;"
       onmousedown="bringToFront(this)"
       ontouchstart="bringToFront(this)"
-      class="draggable-window glass-surface cozy-card-dark absolute w-[310px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
+      class="draggable-window glass-surface cozy-card-dark hidden absolute w-[305px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
     >
       <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
         <div class="flex items-center gap-2">
           <span class="w-6 h-6 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center">
             <i class="ph-fill ph-hourglass-medium text-base"></i>
           </span>
-          <span class="font-cozy-soft text-xs font-bold tracking-wide">Tiempo de Lectura</span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Temporizador & Cronómetro</span>
         </div>
         <button
           type="button"
@@ -421,7 +430,6 @@
       </div>
 
       <div class="p-3.5">
-        <!-- Alternar Temporizador / Cronómetro -->
         <div class="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/20 border border-current/10 mb-3 text-xs">
           <button
             id="mode-countdown-btn"
@@ -441,42 +449,22 @@
           </button>
         </div>
 
-        <!-- Pantalla numérica -->
         <div class="text-center my-2 py-2.5 rounded-2xl bg-amber-300/[0.06] border border-amber-300/15">
           <div id="clock-display" class="font-cozy-title text-3xl font-semibold tracking-wider tabular-nums text-amber-300">
-            25:00
+            30:00
           </div>
           <p id="clock-subtitle" class="text-[11px] opacity-75 mt-0.5">Sesión tranquila de lectura</p>
         </div>
 
-        <!-- Presets y minutos personalizados -->
-        <div id="countdown-controls" class="mb-3 space-y-1.5">
+        <div id="countdown-controls" class="mb-3">
           <div class="grid grid-cols-4 gap-1.5">
             <button type="button" onclick="setCountdownMinutes(15)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">15m</button>
-            <button type="button" onclick="setCountdownMinutes(25)" class="preset-btn py-1.5 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 cursor-pointer">25m</button>
+            <button type="button" onclick="setCountdownMinutes(30)" class="preset-btn py-1.5 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 cursor-pointer">30m</button>
             <button type="button" onclick="setCountdownMinutes(45)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">45m</button>
             <button type="button" onclick="setCountdownMinutes(60)" class="preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer">60m</button>
           </div>
-          <div class="flex gap-1.5">
-            <input
-              id="custom-mins-input"
-              type="number"
-              min="1"
-              max="360"
-              placeholder="Minutos personalizados (ej. 20)"
-              class="flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
-            />
-            <button
-              type="button"
-              onclick="applyCustomCountdown()"
-              class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border border-current/10 cursor-pointer"
-            >
-              Fijar
-            </button>
-          </div>
         </div>
 
-        <!-- Botones Iniciar / Pausar / Reiniciar -->
         <div class="flex gap-2">
           <button
             id="clock-start-btn"
@@ -496,23 +484,22 @@
           </button>
         </div>
 
-        <!-- Contador acumulado del día -->
         <div class="mt-3 pt-2.5 border-t border-current/10">
           <div class="flex items-center justify-between text-[11px] mb-1">
             <span class="opacity-75 flex items-center gap-1">
-              <i class="ph-fill ph-book-open-text text-amber-300"></i> Acumulado hoy:
+              <i class="ph-fill ph-book-open-text text-amber-300"></i> Minutos leídos hoy:
             </span>
-            <span id="today-minutes-badge" class="font-bold text-amber-300">15 min</span>
+            <span id="today-minutes-badge" class="font-bold text-amber-300">20 min</span>
           </div>
           <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden">
-            <div id="today-progress-bar" class="h-full rounded-full bg-gradient-to-r from-amber-300 to-orange-400 transition-all duration-500" style="width: 25%;"></div>
+            <div id="today-progress-bar" class="h-full rounded-full bg-gradient-to-r from-amber-300 to-orange-400 transition-all duration-500" style="width: 33%;"></div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- ---------------------------------------------------------
-         WIDGET 3: CHAT DE SALA
+         VENTANA 3: CHAT DE SALA
     ---------------------------------------------------------- -->
     <section
       id="widget-chat"
@@ -538,51 +525,37 @@
         </button>
       </div>
 
-      <!-- Nombre de usuario editable -->
-      <div class="px-3 py-1.5 border-b border-current/10 bg-black/10 flex items-center justify-between gap-2 text-[11px]">
-        <span class="opacity-70 shrink-0">Tu apodo:</span>
-        <input
-          id="chat-username-input"
-          type="text"
-          value="Tú"
-          maxlength="18"
-          aria-label="Nombre de usuario en el chat"
-          class="bg-transparent border-b border-dashed border-current/25 focus:border-amber-300 focus:outline-none font-bold text-amber-300 text-right w-32"
-        />
-      </div>
-
       <!-- Mensajes -->
-      <div id="chat-messages" class="p-3 h-44 overflow-y-auto custom-scroll flex flex-col gap-2 text-xs">
+      <div id="chat-messages" class="p-3 h-40 overflow-y-auto custom-scroll flex flex-col gap-2 text-xs">
         <div class="flex flex-col gap-0.5">
-          <span class="text-[11px] font-bold text-amber-300 ml-1">Valeria ✨</span>
+          <span class="text-[11px] font-bold text-pink-300 ml-1">Lucía 🌸</span>
           <div class="px-3 py-2 rounded-2xl rounded-tl-sm bg-white/10 border border-white/5 max-w-[85%] leading-relaxed">
-            ¡Qué bonito ha quedado este rincón! Yo ya estoy con mi taza y música suave ☕📖
+            ¡Holii! Ya me puse mi conejito Sylvanian y saqué las pinturas 🎨🐰
           </div>
         </div>
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[11px] font-bold text-emerald-300 ml-1">Sofía 🌿</span>
-          <div class="px-3 py-2 rounded-2xl rounded-tl-sm bg-white/10 border border-white/5 max-w-[85%] leading-relaxed">
-            ¿Ponemos 25 minutitos de lectura antes de charlar? ✨
+        <div class="flex flex-col gap-0.5 items-end">
+          <span class="text-[11px] font-bold text-amber-300 mr-1">Tú ✨</span>
+          <div class="px-3 py-2 rounded-2xl rounded-tr-sm bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 font-semibold max-w-[85%] leading-relaxed">
+            ¡Qué mono! Pongo música lofi y ponemos un cuadro en la pared 🖼️🎶
           </div>
         </div>
       </div>
 
-      <!-- Emojis rápidos -->
+      <!-- Stickers / emojis rápidos -->
       <div class="px-3 py-1.5 border-t border-current/10 flex items-center justify-between text-sm bg-amber-200/[0.03]">
+        <button type="button" onclick="insertEmoji('🐰')" class="hover:scale-125 transition-transform cursor-pointer">🐰</button>
+        <button type="button" onclick="insertEmoji('🎨')" class="hover:scale-125 transition-transform cursor-pointer">🎨</button>
         <button type="button" onclick="insertEmoji('📖')" class="hover:scale-125 transition-transform cursor-pointer">📖</button>
         <button type="button" onclick="insertEmoji('☕')" class="hover:scale-125 transition-transform cursor-pointer">☕</button>
         <button type="button" onclick="insertEmoji('🎄')" class="hover:scale-125 transition-transform cursor-pointer">🎄</button>
-        <button type="button" onclick="insertEmoji('🎧')" class="hover:scale-125 transition-transform cursor-pointer">🎧</button>
-        <button type="button" onclick="insertEmoji('🕯️')" class="hover:scale-125 transition-transform cursor-pointer">🕯️</button>
         <button type="button" onclick="insertEmoji('✨')" class="hover:scale-125 transition-transform cursor-pointer">✨</button>
       </div>
 
-      <!-- Enviar mensaje -->
       <form onsubmit="sendChatMessage(event)" class="p-2.5 border-t border-current/10 flex gap-1.5">
         <input
           id="chat-input"
           type="text"
-          placeholder="Escribe un mensaje..."
+          placeholder="Escribe algo bonito..."
           class="flex-1 text-xs px-3 py-2 rounded-2xl bg-black/20 border border-current/15 focus:border-amber-300 focus:outline-none"
         />
         <button
@@ -596,110 +569,80 @@
     </section>
 
     <!-- ---------------------------------------------------------
-         WIDGET 4: VIDEOLLAMADA
+         VENTANA 4: VIDEOLLAMADA REAL CON JITSI MEET
     ---------------------------------------------------------- -->
     <section
       id="widget-video"
-      style="top: 438px; right: 18px; z-index: 22;"
+      style="top: 392px; right: 18px; z-index: 22;"
       onmousedown="bringToFront(this)"
       ontouchstart="bringToFront(this)"
-      class="draggable-window glass-surface cozy-card-dark absolute w-[305px] sm:w-[330px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
+      class="draggable-window glass-surface cozy-card-dark absolute w-[320px] sm:w-[360px] rounded-3xl backdrop-blur-xl overflow-hidden transition-shadow duration-300"
     >
       <div class="drag-handle flex items-center justify-between px-4 py-2.5 border-b border-current/10 bg-amber-200/[0.04]">
         <div class="flex items-center gap-2">
           <span class="w-6 h-6 rounded-xl bg-emerald-400/20 text-emerald-300 flex items-center justify-center">
             <i class="ph-fill ph-video-camera text-base"></i>
           </span>
-          <span class="font-cozy-soft text-xs font-bold tracking-wide">Videollamada</span>
+          <span class="font-cozy-soft text-xs font-bold tracking-wide">Videollamada (Jitsi)</span>
         </div>
-        <button
-          type="button"
-          onclick="toggleWidget('video')"
-          class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
-          title="Minimizar"
-        >
-          <i class="ph-bold ph-minus text-xs"></i>
-        </button>
-      </div>
-
-      <div class="p-2.5 grid grid-cols-2 gap-2">
-        <!-- Vista de amiga en sala -->
-        <div class="relative aspect-square rounded-2xl bg-gradient-to-br from-rose-950/70 via-amber-950/50 to-stone-900 border border-amber-200/15 flex flex-col items-center justify-center overflow-hidden">
-          <div class="w-11 h-11 rounded-full bg-amber-300/20 border border-amber-300/40 flex items-center justify-center text-2xl animate-float-cozy">
-            👩‍💻
-          </div>
-          <span class="mt-1.5 text-[11px] font-bold text-amber-50">Valeria</span>
-          <span class="text-[10px] text-amber-200/75">Leyendo en sala</span>
-          <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
-        </div>
-
-        <!-- Cámara local -->
-        <div class="relative aspect-square rounded-2xl bg-black/30 border border-current/10 flex flex-col items-center justify-center overflow-hidden">
-          <video id="local-video" autoplay playsinline muted class="hidden w-full h-full object-cover scale-x-[-1]"></video>
-          <div id="local-video-placeholder" class="flex flex-col items-center justify-center text-center p-2">
-            <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg mb-1">🧸</div>
-            <span id="cam-status-note" class="text-[10px] opacity-75 leading-tight">Cámara apagada</span>
-          </div>
-          <span class="absolute bottom-1.5 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/55 text-white font-semibold">Tú</span>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick="openWardrobeFor(myUserId)"
+            class="px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 hover:brightness-105 text-[11px] font-bold transition-all cursor-pointer"
+            title="Editar mi muñequito en la habitación"
+          >
+            Mi muñeco
+          </button>
+          <button
+            type="button"
+            onclick="toggleWidget('video')"
+            class="w-6 h-6 rounded-xl hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+            title="Minimizar"
+          >
+            <i class="ph-bold ph-minus text-xs"></i>
+          </button>
         </div>
       </div>
 
-      <div class="px-3 pb-2.5 flex items-center justify-center gap-2">
-        <button
-          id="toggle-cam-btn"
-          type="button"
-          onclick="toggleCamera()"
-          class="flex-1 py-1.5 px-3 rounded-2xl text-xs font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 hover:bg-emerald-400/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-        >
-          <i id="cam-icon" class="ph-bold ph-video-camera"></i>
-          <span id="cam-btn-text">Activar cámara</span>
-        </button>
-        <button
-          id="toggle-mic-btn"
-          type="button"
-          onclick="toggleMic()"
-          class="px-3 py-1.5 rounded-2xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-current/10 flex items-center gap-1 transition-colors cursor-pointer"
-          title="Activar / Silenciar micrófono"
-        >
-          <i id="mic-icon" class="ph-bold ph-microphone"></i>
-          <span id="mic-btn-text" class="text-[11px]">Micro</span>
-        </button>
+      <!-- Contenedor de videollamada Jitsi Meet -->
+      <div class="p-2.5">
+        <div id="jitsi-standby-view" class="rounded-2xl bg-black/25 border border-amber-300/20 p-4 flex flex-col items-center justify-center text-center gap-2">
+          <div class="w-12 h-12 rounded-full bg-emerald-400/20 border border-emerald-400/35 flex items-center justify-center text-2xl animate-float-cozy">
+            📹
+          </div>
+          <p class="text-xs font-bold">Sala de vídeo lista para tu grupo</p>
+          <p class="text-[11px] opacity-75 leading-relaxed">
+            Pulsa el botón para conectar cámara y micrófono con tus amigas en esta misma habitación.
+          </p>
+          <button
+            type="button"
+            onclick="joinJitsiCall()"
+            class="mt-1 px-4 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-emerald-400 to-teal-300 text-stone-950 hover:brightness-105 transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+          >
+            <i class="ph-bold ph-video-camera"></i>
+            <span>Unirse a videollamada</span>
+          </button>
+        </div>
+
+        <div id="jitsi-active-wrapper" class="hidden flex-col gap-2">
+          <div id="jitsi-mount-container" class="w-full h-56 rounded-2xl overflow-hidden bg-stone-950 border border-white/10"></div>
+          <button
+            type="button"
+            onclick="leaveJitsiCall()"
+            class="w-full py-1.5 px-3 rounded-2xl text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/35 hover:bg-rose-500/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <i class="ph-bold ph-phone-disconnect"></i>
+            <span>Salir de llamada</span>
+          </button>
+        </div>
       </div>
     </section>
 
     <!-- =========================================================
-         PERSONAJE COZY ARRASTRABLE CON VESTIDOR DE ACCESORIOS
+         CAPA DE AVATARES DE PARTICIPANTES EN LA HABITACIÓN
     ========================================================== -->
-    <div
-      id="cozy-character"
-      style="top: 235px; left: 44%; z-index: 35;"
-      onmousedown="bringToFront(this)"
-      ontouchstart="bringToFront(this)"
-      class="draggable-entity absolute flex flex-col items-center"
-      title="Arrastra a tu personaje o abre su vestidor"
-    >
-      <!-- Bocadillo de estado -->
-      <div
-        id="char-status-bubble"
-        class="mb-1 px-3 py-1 rounded-full backdrop-blur-md bg-stone-900/90 text-amber-50 border border-amber-200/25 text-[11px] font-semibold shadow-lg flex items-center gap-1.5 whitespace-nowrap animate-float-cozy"
-      >
-        <span id="char-status-emoji">📖</span>
-        <span id="char-status-text">Leyendo</span>
-      </div>
-
-      <!-- Ilustración SVG combinable -->
-      <div id="char-svg-container" class="w-32 h-32 drop-shadow-2xl animate-breathe"></div>
-
-      <!-- Etiqueta + acceso rápido al vestidor -->
-      <button
-        type="button"
-        onclick="togglePanel('panel-character')"
-        class="mt-1 flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md text-amber-50 text-[11px] font-bold border border-amber-200/25 shadow-md transition-all cursor-pointer"
-      >
-        <span id="char-name-tag">Mi Muñeco</span>
-        <i class="ph-fill ph-sparkle text-amber-300 text-xs"></i>
-      </button>
-    </div>
+    <div id="avatars-layer" class="pointer-events-none fixed inset-0"></div>
 
     <!-- =========================================================
          CAPA DE OBJETOS DECORATIVOS ("COSITAS")
@@ -709,11 +652,115 @@
   </main>
 
   <!-- =========================================================
-       PANEL 1: SELECTOR DE FONDOS Y AMBIENTES
+       PANEL 1: VESTIDOR DE AVATARES (MULTI-PARTICIPANTE)
+  ========================================================== -->
+  <div
+    id="panel-character"
+    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[95%] max-w-xl p-4 rounded-3xl backdrop-blur-xl max-h-[78vh] overflow-y-auto custom-scroll"
+  >
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
+        <i class="ph-fill ph-coat-hanger text-base"></i> Vestidor de Muñequitos
+      </h3>
+      <button
+        type="button"
+        onclick="closeAllPanels()"
+        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+      >
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+
+    <!-- Selector superior de participante activo -->
+    <div class="mb-3 p-2.5 rounded-2xl bg-black/20 border border-current/10">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold opacity-80">Editando el muñequito de:</span>
+        <span class="text-[10px] opacity-70">Se sincroniza en vivo ✨</span>
+      </div>
+      <div id="wardrobe-avatar-tabs" class="flex flex-wrap gap-1.5"></div>
+    </div>
+
+    <!-- Nombre del muñeco -->
+    <div class="mb-3 flex items-center gap-2">
+      <label class="text-[11px] font-semibold opacity-75 shrink-0">Nombre:</label>
+      <input
+        id="wardrobe-name-input"
+        type="text"
+        maxlength="16"
+        oninput="updateActiveAvatarName(this.value)"
+        class="flex-1 text-xs px-3 py-1.5 rounded-xl bg-black/25 border border-current/15 focus:border-amber-300 focus:outline-none"
+      />
+    </div>
+
+    <!-- 1. Forma / Personaje -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">1. Forma / Personaje:</label>
+      <div id="wardrobe-shapes-grid" class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[11px]"></div>
+    </div>
+
+    <!-- 2. Caritas expresivas SVG -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">2. Carita expresiva:</label>
+      <div id="wardrobe-faces-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-[11px]"></div>
+    </div>
+
+    <!-- 3. Paleta ampliada de 12 colores -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">3. Colorcito (12 tonos):</label>
+      <div id="wardrobe-colors-grid" class="grid grid-cols-6 sm:grid-cols-12 gap-2"></div>
+    </div>
+
+    <!-- 4. Accesorios combinables (múltiples) -->
+    <div class="mb-3">
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">4. Accesorios combinables (puedes elegir varios):</label>
+      <div id="wardrobe-accessories-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]"></div>
+    </div>
+
+    <!-- 5. Estado / Bocadillo -->
+    <div>
+      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">5. Estado / Bocadillo:</label>
+      <div id="wardrobe-moods-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 text-[11px] mb-2"></div>
+      <input
+        id="wardrobe-custom-mood-input"
+        type="text"
+        maxlength="24"
+        placeholder="O escribe un estado personalizado..."
+        oninput="updateActiveAvatarCustomMood(this.value)"
+        class="w-full text-xs px-3 py-1.5 rounded-xl bg-black/25 border border-current/15 focus:border-amber-300 focus:outline-none"
+      />
+    </div>
+  </div>
+
+  <!-- =========================================================
+       PANEL 2: CATÁLOGO DE DECORACIÓN ("COSITAS" SVG DETALLADAS)
+  ========================================================== -->
+  <div
+    id="panel-decor"
+    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[94%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[76vh] overflow-y-auto custom-scroll"
+  >
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
+        <i class="ph-fill ph-armchair text-base"></i> Cositas Cozy para Decorar
+      </h3>
+      <button
+        type="button"
+        onclick="closeAllPanels()"
+        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+      >
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+    <p class="text-[11px] opacity-75 mb-3">Pulsa cualquier objeto para ponerlo en tu habitación. Arrástralo libremente o pulsa ✕ / doble clic para quitarlo.</p>
+
+    <div id="decor-catalog-grid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
+  </div>
+
+  <!-- =========================================================
+       PANEL 3: SELECTOR DE FONDOS Y AMBIENTES
   ========================================================== -->
   <div
     id="panel-bg"
-    class="room-popover glass-surface cozy-card-dark hidden fixed top-16 left-1/2 -translate-x-1/2 z-[950] w-[93%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[78vh] overflow-y-auto custom-scroll"
+    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[93%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[78vh] overflow-y-auto custom-scroll"
   >
     <div class="flex items-center justify-between mb-3">
       <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
@@ -729,57 +776,32 @@
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3.5 text-xs">
-      <button
-        type="button"
-        onclick="applyPresetBg('night')"
-        class="p-2 rounded-2xl border border-white/15 bg-[#110e19] text-amber-50 hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('night', true)" class="p-2 rounded-2xl border border-white/15 bg-[#110e19] text-amber-50 hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-amber-400/80 shrink-0"></span>
         <span class="truncate font-semibold">Noche Cálida</span>
       </button>
-      <button
-        type="button"
-        onclick="applyPresetBg('white')"
-        class="p-2 rounded-2xl border border-amber-200 bg-[#fbf7ef] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('white', true)" class="p-2 rounded-2xl border border-amber-200 bg-[#fbf7ef] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-amber-100 border border-stone-300 shrink-0"></span>
-        <span class="truncate font-semibold">Papel Crema</span>
+        <span class="truncate font-semibold">Blanco Crema</span>
       </button>
-      <button
-        type="button"
-        onclick="applyPresetBg('notebook')"
-        class="p-2 rounded-2xl border border-orange-200 bg-[#f8f2e4] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('notebook', true)" class="p-2 rounded-2xl border border-orange-200 bg-[#f8f2e4] text-stone-800 hover:border-amber-500 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-orange-200 border border-orange-300 shrink-0"></span>
-        <span class="truncate font-semibold">Cuadrícula Cozy</span>
+        <span class="truncate font-semibold">Cuadrícula Libreta</span>
       </button>
-      <button
-        type="button"
-        onclick="applyPresetBg('lofi')"
-        class="p-2 rounded-2xl border border-white/15 bg-gradient-to-r from-[#241338] to-[#ad4e6d] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('lofi', true)" class="p-2 rounded-2xl border border-white/15 bg-gradient-to-r from-[#241338] to-[#ad4e6d] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-pink-400 shrink-0"></span>
         <span class="truncate font-semibold">Atardecer Lofi</span>
       </button>
-      <button
-        type="button"
-        onclick="applyPresetBg('forest')"
-        class="p-2 rounded-2xl border border-white/15 bg-[#0e2e26] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('forest', true)" class="p-2 rounded-2xl border border-white/15 bg-[#0e2e26] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-emerald-400 shrink-0"></span>
         <span class="truncate font-semibold">Bosque Nocturno</span>
       </button>
-      <button
-        type="button"
-        onclick="applyPresetBg('coffee')"
-        class="p-2 rounded-2xl border border-white/15 bg-[#301e14] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer"
-      >
+      <button type="button" onclick="applyPresetBg('coffee', true)" class="p-2 rounded-2xl border border-white/15 bg-[#301e14] text-white hover:border-amber-300 flex items-center gap-2 transition-all cursor-pointer">
         <span class="w-4 h-4 rounded-full bg-amber-600 shrink-0"></span>
-        <span class="truncate font-semibold">Café Calentito</span>
+        <span class="truncate font-semibold">Café Lluvia</span>
       </button>
     </div>
 
-    <!-- URL de imagen/GIF o archivo local -->
     <div class="space-y-2.5 pt-2.5 border-t border-current/10">
       <div class="flex gap-1.5">
         <input
@@ -800,7 +822,7 @@
       <div class="flex flex-wrap items-center justify-between gap-2">
         <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-current/15 text-xs font-semibold cursor-pointer transition-colors">
           <i class="ph-bold ph-image text-amber-300"></i>
-          <span>Subir imagen</span>
+          <span>Subir imagen local</span>
           <input type="file" accept="image/*" onchange="handleLocalBgUpload(event)" class="hidden" />
         </label>
 
@@ -818,9 +840,8 @@
         </div>
       </div>
 
-      <!-- Efectos animados opcionales -->
       <div class="pt-2.5 border-t border-current/10 flex flex-wrap items-center justify-between gap-2">
-        <span class="text-xs opacity-80 font-semibold">Efecto animado:</span>
+        <span class="text-xs opacity-80 font-semibold">Partículas ambientales:</span>
         <div class="flex gap-1.5 text-xs">
           <button
             id="fx-none-btn"
@@ -828,7 +849,7 @@
             onclick="setAmbientEffect('none')"
             class="px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
           >
-            Ninguno
+            Calma
           </button>
           <button
             id="fx-rain-btn"
@@ -836,7 +857,7 @@
             onclick="setAmbientEffect('rain')"
             class="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer"
           >
-            🌧️ Lluvia
+            🌧️ Lluvia suave
           </button>
           <button
             id="fx-fireflies-btn"
@@ -852,169 +873,7 @@
   </div>
 
   <!-- =========================================================
-       PANEL 2: VESTIDOR DEL PERSONAJE COZY
-  ========================================================== -->
-  <div
-    id="panel-character"
-    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[94%] max-w-lg p-4 rounded-3xl backdrop-blur-xl max-h-[76vh] overflow-y-auto custom-scroll"
-  >
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
-        <i class="ph-fill ph-coat-hanger text-base"></i> Vestidor de tu Personaje
-      </h3>
-      <button
-        type="button"
-        onclick="closeAllPanels()"
-        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
-      >
-        <i class="ph-bold ph-x text-xs"></i>
-      </button>
-    </div>
-
-    <!-- Tono / color principal -->
-    <div class="mb-3">
-      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Tono / color principal:</label>
-      <div class="flex items-center gap-2.5">
-        <button type="button" onclick="setCharColor('#fde68a')" class="w-6 h-6 rounded-full bg-[#fde68a] border-2 border-white cursor-pointer" title="Ámbar crema"></button>
-        <button type="button" onclick="setCharColor('#fdba74')" class="w-6 h-6 rounded-full bg-[#fdba74] border border-white/40 cursor-pointer" title="Melocotón"></button>
-        <button type="button" onclick="setCharColor('#f9a8d4')" class="w-6 h-6 rounded-full bg-[#f9a8d4] border border-white/40 cursor-pointer" title="Rosa suave"></button>
-        <button type="button" onclick="setCharColor('#c4b5fd')" class="w-6 h-6 rounded-full bg-[#c4b5fd] border border-white/40 cursor-pointer" title="Lavanda"></button>
-        <button type="button" onclick="setCharColor('#6ee7b7')" class="w-6 h-6 rounded-full bg-[#6ee7b7] border border-white/40 cursor-pointer" title="Menta"></button>
-        <button type="button" onclick="setCharColor('#93c5fd')" class="w-6 h-6 rounded-full bg-[#93c5fd] border border-white/40 cursor-pointer" title="Cielo"></button>
-      </div>
-    </div>
-
-    <!-- Base del personaje -->
-    <div class="mb-3">
-      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Personaje base:</label>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-        <button type="button" onclick="setCharBase('reader')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Lector/a</button>
-        <button type="button" onclick="setCharBase('cat')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🐱 Gatito</button>
-        <button type="button" onclick="setCharBase('bear')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🐻 Osito</button>
-        <button type="button" onclick="setCharBase('ghost')" class="char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">👻 Fantasmita</button>
-      </div>
-    </div>
-
-    <!-- Estado con bocadillo -->
-    <div class="mb-3">
-      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Estado (bocadillo):</label>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-        <button type="button" onclick="setCharMood('Leyendo', '📖')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Leyendo</button>
-        <button type="button" onclick="setCharMood('Con auriculares', '🎧')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">🎧 Auriculares</button>
-        <button type="button" onclick="setCharMood('Tomando café', '☕')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">☕ Café</button>
-        <button type="button" onclick="setCharMood('Durmiendo', '😴')" class="char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">😴 Durmiendo</button>
-      </div>
-    </div>
-
-    <!-- Accesorios combinables de cabeza -->
-    <div class="mb-3">
-      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Accesorios combinables (puedes poner varios):</label>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
-        <button
-          id="acc-santa-btn"
-          type="button"
-          onclick="toggleAccessory('santa')"
-          class="py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
-        >
-          🎅 Gorrito Navidad
-        </button>
-        <button
-          id="acc-glasses-btn"
-          type="button"
-          onclick="toggleAccessory('glasses')"
-          class="py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer"
-        >
-          🤓 Gafitas redondas
-        </button>
-        <button
-          id="acc-flowers-btn"
-          type="button"
-          onclick="toggleAccessory('flowers')"
-          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
-        >
-          🌸 Corona flores
-        </button>
-        <button
-          id="acc-beret-btn"
-          type="button"
-          onclick="toggleAccessory('beret')"
-          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
-        >
-          🎨 Boina
-        </button>
-        <button
-          id="acc-headphones-btn"
-          type="button"
-          onclick="toggleAccessory('headphones')"
-          class="py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer"
-        >
-          🎧 Auriculares
-        </button>
-      </div>
-    </div>
-
-    <!-- Complemento en mano -->
-    <div>
-      <label class="block text-[11px] font-semibold opacity-75 mb-1.5">Complemento en mano:</label>
-      <div class="grid grid-cols-3 gap-1.5 text-[11px]">
-        <button type="button" onclick="setCharProp('none')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">✋ Nada</button>
-        <button type="button" onclick="setCharProp('book')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer">📖 Libro</button>
-        <button type="button" onclick="setCharProp('coffee')" class="char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer">☕ Taza de café</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================================================
-       PANEL 3: CATÁLOGO DE DECORACIÓN ("COSITAS")
-  ========================================================== -->
-  <div
-    id="panel-decor"
-    class="room-popover glass-surface cozy-card-dark hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[950] w-[92%] max-w-md p-4 rounded-3xl backdrop-blur-xl"
-  >
-    <div class="flex items-center justify-between mb-2">
-      <h3 class="font-cozy-soft text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-300">
-        <i class="ph-fill ph-armchair text-base"></i> Cositas para la habitación
-      </h3>
-      <button
-        type="button"
-        onclick="closeAllPanels()"
-        class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
-      >
-        <i class="ph-bold ph-x text-xs"></i>
-      </button>
-    </div>
-    <p class="text-[11px] opacity-75 mb-2.5">Añade objetos, arrástralos donde quieras o pulsa ✕ / doble clic para quitarlos.</p>
-
-    <div class="grid grid-cols-3 gap-2 text-center">
-      <button type="button" onclick="spawnSticker('🪔', 'Lámpara')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">🪔</span>
-        <span class="text-[11px] font-semibold">Lámpara</span>
-      </button>
-      <button type="button" onclick="spawnSticker('🪴', 'Planta')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">🪴</span>
-        <span class="text-[11px] font-semibold">Planta</span>
-      </button>
-      <button type="button" onclick="spawnSticker('📚', 'Libros')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">📚</span>
-        <span class="text-[11px] font-semibold">Libros</span>
-      </button>
-      <button type="button" onclick="spawnSticker('☕', 'Taza')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">☕</span>
-        <span class="text-[11px] font-semibold">Taza</span>
-      </button>
-      <button type="button" onclick="spawnSticker('🕯️', 'Vela')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">🕯️</span>
-        <span class="text-[11px] font-semibold">Vela</span>
-      </button>
-      <button type="button" onclick="spawnSticker('⭐', 'Estrella / Cojín')" class="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center gap-1 transition-transform active:scale-95 cursor-pointer">
-        <span class="text-2xl">⭐</span>
-        <span class="text-[11px] font-semibold">Estrella / Cojín</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- =========================================================
-       BARRA INFERIOR FLOTANTE (DOCK)
+       DOCK INFERIOR ESTILO MACOS COZY
   ========================================================== -->
   <nav
     id="bottom-dock"
@@ -1025,7 +884,7 @@
       onclick="toggleWidget('youtube')"
       id="dock-youtube"
       class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-rose-400 transition-all cursor-pointer shrink-0"
-      title="Mostrar/ocultar Mini YouTube"
+      title="YouTube"
     >
       <i class="ph-fill ph-youtube-logo text-base"></i>
       <span class="hidden md:inline">YouTube</span>
@@ -1033,13 +892,13 @@
 
     <button
       type="button"
-      onclick="toggleWidget('timer')"
-      id="dock-timer"
-      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-amber-300 transition-all cursor-pointer shrink-0"
-      title="Mostrar/ocultar Temporizador y Cronómetro"
+      onclick="toggleWidget('video')"
+      id="dock-video"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-emerald-300 transition-all cursor-pointer shrink-0"
+      title="Videollamada"
     >
-      <i class="ph-fill ph-hourglass-medium text-base"></i>
-      <span class="hidden md:inline">Lectura</span>
+      <i class="ph-fill ph-video-camera text-base"></i>
+      <span class="hidden md:inline">Videollamada</span>
     </button>
 
     <button
@@ -1047,21 +906,10 @@
       onclick="toggleWidget('chat')"
       id="dock-chat"
       class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-sky-300 transition-all cursor-pointer shrink-0"
-      title="Mostrar/ocultar Chat"
+      title="Chat"
     >
       <i class="ph-fill ph-chats-circle text-base"></i>
       <span class="hidden md:inline">Chat</span>
-    </button>
-
-    <button
-      type="button"
-      onclick="toggleWidget('video')"
-      id="dock-video"
-      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/15 text-emerald-300 transition-all cursor-pointer shrink-0"
-      title="Mostrar/ocultar Videollamada"
-    >
-      <i class="ph-fill ph-video-camera text-base"></i>
-      <span class="hidden md:inline">Video</span>
     </button>
 
     <div class="w-px h-6 bg-current/15 mx-0.5 shrink-0"></div>
@@ -1070,15 +918,17 @@
       type="button"
       onclick="togglePanel('panel-character')"
       class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-amber-300/20 text-amber-200 border border-amber-300/35 hover:brightness-110 transition-all cursor-pointer shrink-0"
+      title="Vestidor"
     >
       <i class="ph-fill ph-coat-hanger text-base text-amber-300"></i>
-      <span>Personaje</span>
+      <span>Vestidor</span>
     </button>
 
     <button
       type="button"
       onclick="togglePanel('panel-decor')"
       class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/15 transition-all cursor-pointer shrink-0"
+      title="Cositas"
     >
       <i class="ph-fill ph-armchair text-base text-orange-300"></i>
       <span>Cositas</span>
@@ -1086,15 +936,27 @@
 
     <button
       type="button"
+      onclick="toggleWidget('timer')"
+      id="dock-timer"
+      class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/10 opacity-45 hover:opacity-100 text-amber-300 transition-all cursor-pointer shrink-0"
+      title="Temporizador"
+    >
+      <i class="ph-fill ph-hourglass-medium text-base"></i>
+      <span class="hidden md:inline">Temporizador</span>
+    </button>
+
+    <button
+      type="button"
       onclick="togglePanel('panel-bg')"
       class="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/15 transition-all cursor-pointer shrink-0"
+      title="Fondos"
     >
       <i class="ph-fill ph-palette text-base text-pink-300"></i>
       <span>Fondos</span>
     </button>
   </nav>
 
-  <!-- Aviso flotante discreto (sin alert) -->
+  <!-- Aviso flotante -->
   <div
     id="toast-box"
     class="fixed top-16 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 rounded-full bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 text-xs font-bold shadow-xl opacity-0 pointer-events-none transition-opacity duration-300"
@@ -1105,7 +967,103 @@
   <script>
     'use strict';
 
-    let highestZ = 50;
+    // ---------------------------------------------------------
+    // 0. CONFIGURACIÓN DE FIREBASE REALTIME DATABASE Y SALA
+    // ---------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyCkT0xTF226mzak_UnLLuikiCOZkPN9ITk",
+      authDomain: "cozyroom-5f36e.firebaseapp.com",
+      databaseURL: "https://cozyroom-5f36e-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "cozyroom-5f36e",
+      storageBucket: "cozyroom-5f36e.firebasestorage.app",
+      messagingSenderId: "618599266688",
+      appId: "1:618599266688:web:57f7ad452f5c99202a6965"
+    };
+
+    let db = null;
+    let firebaseConnected = false;
+    let roomListeners = [];
+
+    function sanitizeRoomSlug(raw) {
+      const cleaned = String(raw || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      return cleaned || 'sala-principal';
+    }
+
+    function getInitialRoomId() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const fromQuery = params.get('sala');
+        if (fromQuery) return sanitizeRoomSlug(fromQuery);
+      } catch (e) {
+        // Ignorar si la URL no permite leer searchParams
+      }
+      return 'sala-principal';
+    }
+
+    function getOrCreateUserId() {
+      try {
+        let uid = localStorage.getItem('cozyroom_uid');
+        if (!uid) {
+          uid = 'user_' + Math.random().toString(36).slice(2, 10);
+          localStorage.setItem('cozyroom_uid', uid);
+        }
+        return uid;
+      } catch (e) {
+        return 'user_' + Math.random().toString(36).slice(2, 10);
+      }
+    }
+
+    let currentRoomId = getInitialRoomId();
+    const myUserId = getOrCreateUserId();
+    let activeAvatarId = myUserId;
+
+    function updateConnectionBadge(isOnline) {
+      firebaseConnected = isOnline;
+      const badge = document.getElementById('firebase-status-badge');
+      if (!badge) return;
+      if (isOnline) {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/30 text-emerald-300 text-[11px] font-bold';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>🟢 Conectado en vivo</span>';
+      } else {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[11px] font-bold';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>🟡 Modo local</span>';
+      }
+    }
+
+    function roomRef(subpath) {
+      if (!db) return null;
+      return subpath ? db.ref(`rooms/${currentRoomId}/${subpath}`) : db.ref(`rooms/${currentRoomId}`);
+    }
+
+    function switchRoomByInput() {
+      const input = document.getElementById('room-name-input');
+      const nextRoom = sanitizeRoomSlug(input ? input.value : 'sala-principal');
+      if (input) input.value = nextRoom;
+      if (nextRoom === currentRoomId) {
+        showToast(`Ya estás en la sala "${nextRoom}"`);
+        return;
+      }
+      currentRoomId = nextRoom;
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('sala', currentRoomId);
+        window.history.replaceState({}, '', url.toString());
+      } catch (e) {
+        // Ignorar en entornos sandbox
+      }
+      if (jitsiApi || document.getElementById('jitsi-active-wrapper') && !document.getElementById('jitsi-active-wrapper').classList.contains('hidden')) {
+        leaveJitsiCall();
+      }
+      connectToRoom(currentRoomId);
+      showToast(`🚪 Entraste a la sala "${currentRoomId}"`);
+    }
+
+    let highestZ = 60;
     let isLightTheme = false;
     let toastTimeout = null;
 
@@ -1120,24 +1078,20 @@
         toastTimeout = setTimeout(() => {
           toast.classList.remove('opacity-100');
           toast.classList.add('opacity-0');
-        }, 2400);
+        }, 2300);
       } catch (err) {
-        console.error('Error al mostrar aviso:', err);
+        console.error(err);
       }
     }
 
     function bringToFront(el) {
-      try {
-        if (!el) return;
-        highestZ += 1;
-        el.style.zIndex = String(highestZ);
-      } catch (err) {
-        console.error('Error al traer elemento al frente:', err);
-      }
+      if (!el) return;
+      highestZ += 1;
+      el.style.zIndex = String(highestZ);
     }
 
     // ---------------------------------------------------------
-    // 1. CABECERA, TEMA RÁPIDO Y COPIAR ENLACE CON FALLBACK
+    // 1. TEMA CLARO / OSCURO Y ENLACE DE SALA
     // ---------------------------------------------------------
     function syncThemeAppearance(light) {
       isLightTheme = Boolean(light);
@@ -1172,37 +1126,32 @@
       const customImg = document.getElementById('custom-bg-image');
       if (customImg) customImg.classList.add('opacity-0');
 
-      const body = document.getElementById('app-body');
-      if (body) {
-        body.classList.remove(
-          'bg-theme-night', 'bg-theme-white', 'bg-theme-notebook',
-          'bg-theme-lofi', 'bg-theme-forest', 'bg-theme-coffee'
-        );
-        body.classList.add(isLightTheme ? 'bg-theme-night' : 'bg-theme-white');
-      }
-      syncThemeAppearance(!isLightTheme);
+      const nextTheme = isLightTheme ? 'night' : 'white';
+      applyPresetBg(nextTheme, true);
     }
 
     function copyRoomLink() {
       try {
         const roomInput = document.getElementById('room-name-input');
-        const rawName = roomInput && roomInput.value.trim() ? roomInput.value.trim() : 'rincon-cozy';
-        const slug = encodeURIComponent(rawName.toLowerCase().replace(/\s+/g, '-'));
-        const baseUrl = window.location.href && window.location.href.startsWith('http')
-          ? window.location.href.split('#')[0]
-          : 'https://mi-rincon-cozy.app';
-        const shareUrl = `${baseUrl}#sala=${slug}`;
+        const slug = sanitizeRoomSlug(roomInput && roomInput.value ? roomInput.value : currentRoomId);
+        let shareUrl = '';
+        if (window.location.href && window.location.href.startsWith('http')) {
+          const url = new URL(window.location.href.split('#')[0]);
+          url.searchParams.set('sala', slug);
+          shareUrl = url.toString();
+        } else {
+          shareUrl = `https://irala.github.io/CozyRoom/?sala=${slug}`;
+        }
 
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
           navigator.clipboard.writeText(shareUrl)
-            .then(() => showToast('🔗 Enlace de la sala copiado'))
+            .then(() => showToast('🔗 Enlace de sala copiado'))
             .catch(() => fallbackCopyText(shareUrl));
         } else {
           fallbackCopyText(shareUrl);
         }
       } catch (err) {
-        console.error('Error al copiar enlace:', err);
-        showToast('No se pudo copiar automáticamente');
+        showToast('Copia la dirección de tu navegador');
       }
     }
 
@@ -1219,13 +1168,10 @@
         document.body.removeChild(temp);
         showToast('🔗 Enlace de la sala copiado');
       } catch (err) {
-        showToast('Copia la URL desde la barra del navegador');
+        showToast('No se pudo copiar el enlace');
       }
     }
 
-    // ---------------------------------------------------------
-    // PANELES Y VISIBILIDAD DE VENTANAS
-    // ---------------------------------------------------------
     function closeAllPanels() {
       document.querySelectorAll('.room-popover').forEach((panel) => {
         panel.classList.add('hidden');
@@ -1233,248 +1179,797 @@
     }
 
     function togglePanel(panelId) {
-      try {
-        const target = document.getElementById(panelId);
-        if (!target) return;
-        const willOpen = target.classList.contains('hidden');
-        closeAllPanels();
-        if (willOpen) {
-          target.classList.remove('hidden');
-          bringToFront(target);
-        }
-      } catch (err) {
-        console.error('Error al alternar panel:', err);
+      const target = document.getElementById(panelId);
+      if (!target) return;
+      const willOpen = target.classList.contains('hidden');
+      closeAllPanels();
+      if (willOpen) {
+        target.classList.remove('hidden');
+        bringToFront(target);
       }
     }
 
     function toggleWidget(name) {
-      try {
-        const widget = document.getElementById(`widget-${name}`);
-        const dockBtn = document.getElementById(`dock-${name}`);
-        if (!widget) return;
+      const widget = document.getElementById(`widget-${name}`);
+      const dockBtn = document.getElementById(`dock-${name}`);
+      if (!widget) return;
 
-        const isHidden = widget.classList.contains('hidden');
-        widget.classList.toggle('hidden', !isHidden);
-        if (isHidden) bringToFront(widget);
-
-        if (dockBtn) {
-          dockBtn.classList.toggle('opacity-45', !isHidden);
-        }
-      } catch (err) {
-        console.error('Error al alternar ventana:', err);
-      }
+      const isHidden = widget.classList.contains('hidden');
+      widget.classList.toggle('hidden', !isHidden);
+      if (isHidden) bringToFront(widget);
+      if (dockBtn) dockBtn.classList.toggle('opacity-45', !isHidden);
     }
 
     // ---------------------------------------------------------
-    // 2. FONDOS, IMAGEN PERSONALIZADA, OSCURECER Y CANVAS CLIMA
+    // 2. AVATARES MULTIJUGADOR POR PARTICIPANTE
     // ---------------------------------------------------------
-    function applyPresetBg(themeKey) {
-      try {
-        const body = document.getElementById('app-body');
-        const customImg = document.getElementById('custom-bg-image');
-        const dimmer = document.getElementById('custom-bg-dimmer');
+    const AVATAR_SHAPES = [
+      { id: 'reader', label: 'Lector/a', icon: '📖' },
+      { id: 'cat', label: 'Gatito', icon: '🐱' },
+      { id: 'bear', label: 'Osito', icon: '🐻' },
+      { id: 'sylvanian', label: 'Conejito Sylvanian', icon: '🐰' },
+      { id: 'ghost', label: 'Fantasmita', icon: '👻' }
+    ];
 
-        if (customImg) customImg.classList.add('opacity-0');
-        if (dimmer) dimmer.style.opacity = '0';
+    const AVATAR_FACES = [
+      { id: 'sweet', label: 'Dulce', icon: '🥺' },
+      { id: 'happy', label: 'Feliz (^ ^)', icon: '😊' },
+      { id: 'sleepy', label: 'Dormilón (- -)', icon: '😴' },
+      { id: 'stars', label: 'Estrellitas (★ ★)', icon: '🤩' },
+      { id: 'wink', label: 'Guiño (;))', icon: '😉' },
+      { id: 'kitty', label: 'Gatito (:3)', icon: '😺' }
+    ];
 
-        if (body) {
-          body.classList.remove(
-            'bg-theme-night', 'bg-theme-white', 'bg-theme-notebook',
-            'bg-theme-lofi', 'bg-theme-forest', 'bg-theme-coffee'
-          );
-          body.classList.add(`bg-theme-${themeKey}`);
-        }
+    const AVATAR_COLORS = [
+      { id: 'cream', name: 'Crema cálido', hex: '#fde68a' },
+      { id: 'peach', name: 'Melocotón', hex: '#fdba74' },
+      { id: 'pink', name: 'Rosa pastel', hex: '#f9a8d4' },
+      { id: 'lavender', name: 'Lavanda', hex: '#c4b5fd' },
+      { id: 'sky', name: 'Azul cielo', hex: '#7dd3fc' },
+      { id: 'mint', name: 'Menta', hex: '#6ee7b7' },
+      { id: 'sage', name: 'Salvia', hex: '#a3e635' },
+      { id: 'amber', name: 'Ámbar dorado', hex: '#fbbf24' },
+      { id: 'terracotta', name: 'Terracota', hex: '#e07a5f' },
+      { id: 'choco', name: 'Chocolate suave', hex: '#b08968' },
+      { id: 'cloud', name: 'Gris nube', hex: '#cbd5e1' },
+      { id: 'starry', name: 'Noche estrellada', hex: '#6366f1' }
+    ];
 
-        const light = themeKey === 'white' || themeKey === 'notebook';
-        syncThemeAppearance(light);
-      } catch (err) {
-        console.error('Error al aplicar fondo:', err);
+    const AVATAR_ACCESSORIES = [
+      { id: 'santa', label: '🎅 Gorrito Navidad' },
+      { id: 'glasses', label: '🤓 Gafitas redondas' },
+      { id: 'flowers', label: '🌸 Corona flores' },
+      { id: 'beret', label: '🎨 Boina francesa' },
+      { id: 'headphones', label: '🎧 Auriculares' },
+      { id: 'book', label: '📖 Libro abierto' },
+      { id: 'coffee', label: '☕ Taza café/té' }
+    ];
+
+    const AVATAR_MOODS = [
+      { text: 'Leyendo', emoji: '📖' },
+      { text: 'Con música', emoji: '🎧' },
+      { text: 'Tomando té', emoji: '🍵' },
+      { text: 'Pintando', emoji: '🎨' },
+      { text: 'Charlando', emoji: '💬' }
+    ];
+
+    let participants = [
+      {
+        id: myUserId,
+        name: 'Tú',
+        isLocal: true,
+        badge: '🧸',
+        x: 42,
+        y: 38,
+        shape: 'reader',
+        face: 'sweet',
+        color: '#fde68a',
+        accessories: { santa: true, glasses: true, book: true },
+        mood: 'Leyendo',
+        moodEmoji: '📖'
       }
+    ];
+
+    let draggingAvatarId = null;
+
+    function getActiveAvatar() {
+      return participants.find((p) => p.id === activeAvatarId) || participants[0];
     }
 
-    function applyCustomBgUrl() {
-      try {
-        const input = document.getElementById('custom-bg-url-input');
-        const url = input ? input.value.trim() : '';
-        if (!url) {
-          showToast('Pega primero el enlace de una imagen o GIF');
-          return;
-        }
-        setCustomBackground(url);
-        showToast('🖼️ Fondo personalizado aplicado');
-      } catch (err) {
-        console.error('Error con URL de fondo:', err);
-        showToast('No se pudo cargar esa URL');
-      }
+    function syncAvatarToFirebase(avatarObj) {
+      if (!db || !avatarObj) return;
+      const ref = roomRef(`avatars/${avatarObj.id}`);
+      if (!ref) return;
+      ref.set({
+        id: avatarObj.id,
+        name: avatarObj.name || 'Amiga',
+        badge: avatarObj.badge || '🧸',
+        x: Number(avatarObj.x) || 45,
+        y: Number(avatarObj.y) || 42,
+        shape: avatarObj.shape || 'reader',
+        face: avatarObj.face || 'sweet',
+        color: avatarObj.color || '#fde68a',
+        accessories: avatarObj.accessories || {},
+        mood: avatarObj.mood || 'Leyendo',
+        moodEmoji: avatarObj.moodEmoji || '📖',
+        updatedAt: Date.now()
+      }).catch(() => {});
     }
 
-    function handleLocalBgUpload(event) {
-      try {
-        const file = event && event.target && event.target.files ? event.target.files[0] : null;
-        if (!file) return;
+    function buildAvatarSVG(p) {
+      const c = p.color;
+      const shape = p.shape;
+      const face = p.face;
+      const acc = p.accessories || {};
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e && e.target && typeof e.target.result === 'string') {
-            setCustomBackground(e.target.result);
-            showToast('📸 Imagen cargada como fondo');
+      // Orejas según forma
+      let ears = '';
+      if (shape === 'cat') {
+        ears = `
+          <polygon points="30,44 21,14 48,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+          <polygon points="90,44 99,14 72,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+          <polygon points="32,40 27,21 44,31" fill="#fda4af"/>
+          <polygon points="88,40 93,21 76,31" fill="#fda4af"/>
+        `;
+      } else if (shape === 'bear') {
+        ears = `
+          <circle cx="31" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
+          <circle cx="89" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
+          <circle cx="31" cy="30" r="5.5" fill="#fda4af"/>
+          <circle cx="89" cy="30" r="5.5" fill="#fda4af"/>
+        `;
+      } else if (shape === 'sylvanian') {
+        ears = `
+          <ellipse cx="42" cy="17" rx="8" ry="21" transform="rotate(-8 42 17)" fill="#fffaf0" stroke="#292524" stroke-width="3"/>
+          <ellipse cx="78" cy="17" rx="8" ry="21" transform="rotate(8 78 17)" fill="#fffaf0" stroke="#292524" stroke-width="3"/>
+          <ellipse cx="42" cy="18" rx="4" ry="14" transform="rotate(-8 42 18)" fill="#fda4af"/>
+          <ellipse cx="78" cy="18" rx="4" ry="14" transform="rotate(8 78 18)" fill="#fda4af"/>
+        `;
+      }
+
+      // Cuerpo / cabeza
+      let body = '';
+      if (shape === 'ghost') {
+        body = `<path d="M28,64 C28,28 92,28 92,64 L92,106 L78,96 L60,108 L42,96 L28,106 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>`;
+      } else if (shape === 'sylvanian') {
+        body = `
+          <rect x="28" y="28" width="64" height="68" rx="31" fill="#fffaf0" stroke="#292524" stroke-width="3"/>
+          <path d="M32,89 Q60,77 88,89 L92,110 L28,110 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M44,86 L44,110 M76,86 L76,110" stroke="#292524" stroke-width="2.5"/>
+          <circle cx="44" cy="95" r="2.2" fill="#fffbeb"/>
+          <circle cx="76" cy="95" r="2.2" fill="#fffbeb"/>
+        `;
+      } else {
+        body = `
+          <rect x="28" y="28" width="64" height="68" rx="31" fill="${shape === 'reader' ? '#ffedd5' : c}" stroke="#292524" stroke-width="3"/>
+          <path d="M33,90 Q60,78 87,90 L91,110 L29,110 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
+        `;
+      }
+
+      // 6 Caritas expresivas SVG
+      let faceSvg = '';
+      if (face === 'happy') {
+        faceSvg = `
+          <path d="M42,57 Q48,49 54,57" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <path d="M66,57 Q72,49 78,57" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <path d="M54,64 Q60,71 66,64" fill="none" stroke="#292524" stroke-width="2.5" stroke-linecap="round"/>
+        `;
+      } else if (face === 'sleepy') {
+        faceSvg = `
+          <path d="M42,56 Q48,61 54,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <path d="M66,56 Q72,61 78,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="60" cy="66" r="2.5" fill="#fb7185"/>
+          <text x="82" y="42" font-size="11" font-weight="bold" fill="#fde68a">zZ</text>
+        `;
+      } else if (face === 'stars') {
+        faceSvg = `
+          <polygon points="48,48 50,53 55,53 51,56 52,61 48,58 44,61 45,56 41,53 46,53" fill="#f59e0b" stroke="#292524" stroke-width="1.3"/>
+          <polygon points="72,48 74,53 79,53 75,56 76,61 72,58 68,61 69,56 65,53 70,53" fill="#f59e0b" stroke="#292524" stroke-width="1.3"/>
+          <path d="M53,64 Q60,72 67,64 Z" fill="#fb7185" stroke="#292524" stroke-width="2"/>
+        `;
+      } else if (face === 'wink') {
+        faceSvg = `
+          <circle cx="48" cy="55" r="4.2" fill="#292524"/>
+          <circle cx="49.5" cy="53.5" r="1.5" fill="#ffffff"/>
+          <path d="M66,55 Q72,50 78,55" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+          <path d="M55,64 Q61,69 66,63" fill="none" stroke="#292524" stroke-width="2.5" stroke-linecap="round"/>
+        `;
+      } else if (face === 'kitty') {
+        faceSvg = `
+          <circle cx="48" cy="55" r="4" fill="#292524"/>
+          <circle cx="72" cy="55" r="4" fill="#292524"/>
+          <circle cx="49.5" cy="53.5" r="1.4" fill="#ffffff"/>
+          <circle cx="73.5" cy="53.5" r="1.4" fill="#ffffff"/>
+          <path d="M53,64 Q56.5,68 60,64 Q63.5,68 67,64" fill="none" stroke="#292524" stroke-width="2.4" stroke-linecap="round"/>
+        `;
+      } else {
+        // Dulce por defecto
+        faceSvg = `
+          <circle cx="48" cy="55" r="4.5" fill="#292524"/>
+          <circle cx="72" cy="55" r="4.5" fill="#292524"/>
+          <circle cx="49.8" cy="53.2" r="1.7" fill="#ffffff"/>
+          <circle cx="73.8" cy="53.2" r="1.7" fill="#ffffff"/>
+          <circle cx="46.5" cy="56.5" r="0.9" fill="#ffffff"/>
+          <circle cx="70.5" cy="56.5" r="0.9" fill="#ffffff"/>
+          <path d="M56,64 Q60,68 64,64" fill="none" stroke="#292524" stroke-width="2.5" stroke-linecap="round"/>
+        `;
+      }
+
+      // Accesorios combinables
+      const glassesSvg = acc.glasses ? `
+        <circle cx="48" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
+        <circle cx="72" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
+        <line x1="57.5" y1="55" x2="62.5" y2="55" stroke="#78350f" stroke-width="2.5"/>
+      ` : '';
+
+      const flowersSvg = acc.flowers ? `
+        <circle cx="40" cy="28" r="5.5" fill="#fda4af" stroke="#292524" stroke-width="2"/>
+        <circle cx="40" cy="28" r="2" fill="#fde047"/>
+        <circle cx="60" cy="25" r="6" fill="#ffffff" stroke="#292524" stroke-width="2"/>
+        <circle cx="60" cy="25" r="2.2" fill="#fb923c"/>
+        <circle cx="80" cy="28" r="5.5" fill="#c4b5fd" stroke="#292524" stroke-width="2"/>
+        <circle cx="80" cy="28" r="2" fill="#fde047"/>
+      ` : '';
+
+      const beretSvg = acc.beret ? `
+        <ellipse cx="62" cy="25" rx="27" ry="10.5" transform="rotate(-10 62 25)" fill="#d97757" stroke="#292524" stroke-width="2.8"/>
+        <line x1="65" y1="15" x2="68" y2="10" stroke="#292524" stroke-width="2.8" stroke-linecap="round"/>
+      ` : '';
+
+      const santaSvg = acc.santa ? `
+        <path d="M32,33 C42,6 76,6 96,26 C88,28 84,33 84,33 Z" fill="#ef4444" stroke="#292524" stroke-width="2.8" stroke-linejoin="round"/>
+        <rect x="29" y="28" width="60" height="10" rx="5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
+        <circle cx="97" cy="27" r="6.5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
+      ` : '';
+
+      const headphonesSvg = acc.headphones ? `
+        <path d="M23,54 C23,18 97,18 97,54" fill="none" stroke="#44403c" stroke-width="5.5" stroke-linecap="round"/>
+        <rect x="17" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
+        <rect x="92" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
+      ` : '';
+
+      const bookSvg = acc.book ? `
+        <path d="M34,82 L58,87 L82,82 L82,104 L58,109 L34,104 Z" fill="#fef3c7" stroke="#292524" stroke-width="2.4" stroke-linejoin="round"/>
+        <line x1="58" y1="87" x2="58" y2="109" stroke="#292524" stroke-width="2"/>
+      ` : '';
+
+      const coffeeSvg = acc.coffee ? `
+        <rect x="68" y="83" width="23" height="19" rx="5" fill="#fffbeb" stroke="#292524" stroke-width="2.4"/>
+        <path d="M91,87 Q98,87 98,92 Q98,97 91,97" fill="none" stroke="#292524" stroke-width="2.4"/>
+        <path d="M76,78 Q74,73 77,69" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+      ` : '';
+
+      return `
+        <svg viewBox="0 0 120 118" class="w-full h-full overflow-visible">
+          ${ears}
+          ${body}
+          <ellipse cx="40" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.65"/>
+          <ellipse cx="80" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.65"/>
+          ${faceSvg}
+          ${glassesSvg}
+          ${flowersSvg}
+          ${beretSvg}
+          ${santaSvg}
+          ${headphonesSvg}
+          ${bookSvg}
+          ${coffeeSvg}
+        </svg>
+      `;
+    }
+
+    function renderAllRoomAvatars() {
+      const layer = document.getElementById('avatars-layer');
+      const badge = document.getElementById('room-members-badge');
+      if (!layer) return;
+
+      layer.innerHTML = '';
+
+      participants.forEach((p) => {
+        const wrapper = document.createElement('div');
+        wrapper.id = `room-avatar-${p.id}`;
+        wrapper.className = 'draggable-entity pointer-events-auto absolute flex flex-col items-center';
+        const pxLeft = Math.max(8, Math.min(window.innerWidth - 130, Math.round((window.innerWidth * (Number(p.x) || 45)) / 100)));
+        const pxTop = Math.max(64, Math.min(window.innerHeight - 170, Math.round((window.innerHeight * (Number(p.y) || 42)) / 100)));
+        wrapper.style.left = `${pxLeft}px`;
+        wrapper.style.top = `${pxTop}px`;
+        wrapper.style.zIndex = p.id === activeAvatarId ? '42' : '36';
+        wrapper.title = `${p.name} · Arrastra por la habitación o pulsa para vestir`;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'mb-1 px-3 py-0.5 rounded-full backdrop-blur-md bg-stone-900/90 text-amber-50 border border-amber-200/25 text-[11px] font-semibold shadow-md flex items-center gap-1 whitespace-nowrap animate-float-cozy';
+        bubble.innerHTML = `<span>${escapeHtml(p.moodEmoji || '✨')}</span><span>${escapeHtml(p.mood || 'En sala')}</span>`;
+
+        const svgWrap = document.createElement('div');
+        svgWrap.className = 'w-28 h-28 sm:w-32 sm:h-32 drop-shadow-2xl animate-breathe';
+        svgWrap.innerHTML = buildAvatarSVG(p);
+
+        const tagBtn = document.createElement('button');
+        tagBtn.type = 'button';
+        tagBtn.className = `mt-1 flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md text-[11px] font-bold border shadow-md transition-all cursor-pointer ${
+          p.id === activeAvatarId
+            ? 'bg-amber-300 text-stone-900 border-white'
+            : 'bg-stone-900/85 hover:bg-stone-800 text-amber-50 border-amber-200/25'
+        }`;
+        tagBtn.innerHTML = `<span>${escapeHtml(p.name)}</span><i class="ph-fill ph-coat-hanger text-xs"></i>`;
+        tagBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openWardrobeFor(p.id);
+        });
+
+        wrapper.appendChild(bubble);
+        wrapper.appendChild(svgWrap);
+        wrapper.appendChild(tagBtn);
+
+        layer.appendChild(wrapper);
+        enableDrag(wrapper, wrapper, {
+          onDragStart: () => {
+            draggingAvatarId = p.id;
+          },
+          onDragMove: (leftPx, topPx) => {
+            p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+            p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+            syncAvatarToFirebase(p);
+          },
+          onDragEnd: (leftPx, topPx) => {
+            p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+            p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+            draggingAvatarId = null;
+            syncAvatarToFirebase(p);
           }
-        };
-        reader.onerror = () => {
-          showToast('No se pudo leer el archivo seleccionado');
-        };
-        reader.readAsDataURL(file);
-      } catch (err) {
-        console.error('Error al subir imagen local:', err);
-        showToast('Error al procesar la imagen');
+        });
+      });
+
+      if (badge) {
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>${participants.length} en sala</span>`;
       }
     }
 
-    function setCustomBackground(src) {
-      const customImg = document.getElementById('custom-bg-image');
-      const dimmer = document.getElementById('custom-bg-dimmer');
-      const slider = document.getElementById('bg-dimmer-slider');
-      const dimVal = slider ? Number(slider.value) / 100 : 0.2;
-
-      if (customImg) {
-        customImg.style.backgroundImage = `url("${src.replace(/"/g, '%22')}")`;
-        customImg.classList.remove('opacity-0');
-      }
-      if (dimmer) {
-        dimmer.style.opacity = String(dimVal);
-      }
-      syncThemeAppearance(false);
-    }
-
-    function updateBgDimmer(value) {
-      const customImg = document.getElementById('custom-bg-image');
-      const dimmer = document.getElementById('custom-bg-dimmer');
-      if (customImg && !customImg.classList.contains('opacity-0') && dimmer) {
-        dimmer.style.opacity = String(Number(value) / 100);
+    function openWardrobeFor(avatarId) {
+      activeAvatarId = avatarId;
+      renderWardrobeUI();
+      renderAllRoomAvatars();
+      const panel = document.getElementById('panel-character');
+      if (panel && panel.classList.contains('hidden')) {
+        togglePanel('panel-character');
       }
     }
 
-    // Efectos animados en Canvas (Lluvia / Luciérnagas)
-    let ambientEffectMode = 'none';
-    let particles = [];
+    function renderWardrobeUI() {
+      const current = getActiveAvatar();
+      if (!current) return;
 
-    function initAmbientCanvas() {
-      const canvas = document.getElementById('ambient-canvas');
-      if (!canvas) return;
-      const resize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        seedParticles(canvas.width, canvas.height);
-      };
-      resize();
-      window.addEventListener('resize', resize);
-      requestAnimationFrame(renderAmbientCanvas);
-    }
-
-    function seedParticles(w, h) {
-      particles = [];
-      if (ambientEffectMode === 'rain') {
-        for (let i = 0; i < 85; i++) {
-          particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            len: 10 + Math.random() * 14,
-            speedY: 5 + Math.random() * 6,
-            speedX: -1.2 + Math.random() * 0.8
+      // Tabs de participantes
+      const tabsEl = document.getElementById('wardrobe-avatar-tabs');
+      if (tabsEl) {
+        tabsEl.innerHTML = '';
+        participants.forEach((p) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const isSelected = p.id === current.id;
+          btn.className = isSelected
+            ? 'px-3 py-1 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 shadow-sm cursor-pointer'
+            : 'px-3 py-1 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 cursor-pointer';
+          btn.textContent = `${p.badge || '🧸'} ${p.name}${p.id === myUserId ? ' (Tú)' : ''}`;
+          btn.addEventListener('click', () => {
+            activeAvatarId = p.id;
+            renderWardrobeUI();
+            renderAllRoomAvatars();
           });
-        }
-      } else if (ambientEffectMode === 'fireflies') {
-        for (let i = 0; i < 36; i++) {
-          particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            r: 1.8 + Math.random() * 2.6,
-            vx: -0.4 + Math.random() * 0.8,
-            vy: -0.4 + Math.random() * 0.8,
-            phase: Math.random() * Math.PI * 2
+          tabsEl.appendChild(btn);
+        });
+      }
+
+      const nameInput = document.getElementById('wardrobe-name-input');
+      if (nameInput) nameInput.value = current.name;
+
+      // Formas
+      const shapesGrid = document.getElementById('wardrobe-shapes-grid');
+      if (shapesGrid) {
+        shapesGrid.innerHTML = '';
+        AVATAR_SHAPES.forEach((sh) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const active = current.shape === sh.id;
+          btn.className = active
+            ? 'py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+            : 'py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+          btn.textContent = `${sh.icon} ${sh.label}`;
+          btn.addEventListener('click', () => {
+            current.shape = sh.id;
+            renderWardrobeUI();
+            renderAllRoomAvatars();
+            syncAvatarToFirebase(current);
           });
-        }
-      }
-    }
-
-    function setAmbientEffect(mode) {
-      ambientEffectMode = mode;
-      const canvas = document.getElementById('ambient-canvas');
-      if (canvas) {
-        seedParticles(canvas.width, canvas.height);
+          shapesGrid.appendChild(btn);
+        });
       }
 
-      const modes = ['none', 'rain', 'fireflies'];
-      modes.forEach((m) => {
-        const btn = document.getElementById(`fx-${m}-btn`);
-        if (!btn) return;
-        const active = m === mode;
+      // Caritas expresivas
+      const facesGrid = document.getElementById('wardrobe-faces-grid');
+      if (facesGrid) {
+        facesGrid.innerHTML = '';
+        AVATAR_FACES.forEach((f) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const active = current.face === f.id;
+          btn.className = active
+            ? 'py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+            : 'py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+          btn.textContent = `${f.icon} ${f.label}`;
+          btn.addEventListener('click', () => {
+            current.face = f.id;
+            renderWardrobeUI();
+            renderAllRoomAvatars();
+            syncAvatarToFirebase(current);
+          });
+          facesGrid.appendChild(btn);
+        });
+      }
+
+      // Paleta de 12 colores
+      const colorsGrid = document.getElementById('wardrobe-colors-grid');
+      if (colorsGrid) {
+        colorsGrid.innerHTML = '';
+        AVATAR_COLORS.forEach((col) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const active = current.color.toLowerCase() === col.hex.toLowerCase();
+          btn.className = `w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110 ${
+            active ? 'ring-2 ring-white scale-110' : 'border border-white/30'
+          }`;
+          btn.style.backgroundColor = col.hex;
+          btn.title = col.name;
+          btn.addEventListener('click', () => {
+            current.color = col.hex;
+            renderWardrobeUI();
+            renderAllRoomAvatars();
+            syncAvatarToFirebase(current);
+          });
+          colorsGrid.appendChild(btn);
+        });
+      }
+
+      // Accesorios combinables (toggle múltiple)
+      const accGrid = document.getElementById('wardrobe-accessories-grid');
+      if (accGrid) {
+        accGrid.innerHTML = '';
+        AVATAR_ACCESSORIES.forEach((acc) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          if (!current.accessories) current.accessories = {};
+          const active = Boolean(current.accessories[acc.id]);
+          btn.className = active
+            ? 'py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+            : 'py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+          btn.textContent = acc.label;
+          btn.addEventListener('click', () => {
+            current.accessories[acc.id] = !current.accessories[acc.id];
+            renderWardrobeUI();
+            renderAllRoomAvatars();
+            syncAvatarToFirebase(current);
+          });
+          accGrid.appendChild(btn);
+        });
+      }
+      const moodBtn = (m) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const active = current.mood === m.text;
         btn.className = active
-          ? 'px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
-          : 'px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer';
+          ? 'py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+        btn.textContent = `${m.emoji} ${m.text}`;
+        btn.addEventListener('click', () => {
+          current.mood = m.text;
+          current.moodEmoji = m.emoji;
+          const customMoodInput = document.getElementById('wardrobe-custom-mood-input');
+          if (customMoodInput) customMoodInput.value = '';
+          renderWardrobeUI();
+          renderAllRoomAvatars();
+          syncAvatarToFirebase(current);
+        });
+        return btn;
+      };
+
+      // Estados / Bocadillo
+      const moodsGrid = document.getElementById('wardrobe-moods-grid');
+      if (moodsGrid) {
+        moodsGrid.innerHTML = '';
+        AVATAR_MOODS.forEach((m) => {
+          moodsGrid.appendChild(moodBtn(m));
+        });
+      }
+    }
+
+    function updateActiveAvatarName(val) {
+      const current = getActiveAvatar();
+      if (!current) return;
+      current.name = val.trim() || 'Amiga';
+      renderAllRoomAvatars();
+      syncAvatarToFirebase(current);
+    }
+
+    function updateActiveAvatarCustomMood(val) {
+      const current = getActiveAvatar();
+      if (!current) return;
+      const clean = val.trim();
+      if (clean) {
+        current.mood = clean;
+        current.moodEmoji = '✨';
+        renderAllRoomAvatars();
+        syncAvatarToFirebase(current);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 3. CATÁLOGO AMPLIADO DE "COSITAS" SVG DETALLADAS
+    // ---------------------------------------------------------
+    const DECOR_CATALOG = [
+      {
+        id: 'painting',
+        label: 'Cuadro ilustrado',
+        svg: `
+          <svg viewBox="0 0 96 84" class="w-20 h-16">
+            <rect x="6" y="6" width="84" height="72" rx="8" fill="#92400e" stroke="#292524" stroke-width="3"/>
+            <rect x="14" y="14" width="68" height="56" rx="4" fill="#1e1b4b"/>
+            <circle cx="64" cy="30" r="9" fill="#fde68a"/>
+            <path d="M14,56 Q34,40 52,55 T82,50 L82,70 L14,70 Z" fill="#4338ca"/>
+            <path d="M14,62 Q40,50 64,63 L82,58 L82,70 L14,70 Z" fill="#312e81"/>
+            <circle cx="30" cy="26" r="1.5" fill="#fef3c7"/>
+            <circle cx="44" cy="22" r="1.2" fill="#fef3c7"/>
+          </svg>
+        `
+      },
+      {
+        id: 'easel',
+        label: 'Caballete y pinturas',
+        svg: `
+          <svg viewBox="0 0 96 96" class="w-20 h-20">
+            <line x1="48" y1="10" x2="26" y2="88" stroke="#92400e" stroke-width="4" stroke-linecap="round"/>
+            <line x1="48" y1="10" x2="70" y2="88" stroke="#92400e" stroke-width="4" stroke-linecap="round"/>
+            <line x1="48" y1="14" x2="48" y2="84" stroke="#78350f" stroke-width="4" stroke-linecap="round"/>
+            <rect x="24" y="20" width="48" height="40" rx="4" fill="#fffbeb" stroke="#292524" stroke-width="2.5"/>
+            <circle cx="42" cy="36" r="7" fill="#f9a8d4"/>
+            <circle cx="56" cy="42" r="6" fill="#fde047"/>
+            <path d="M28,54 Q46,44 68,54" fill="none" stroke="#6ee7b7" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="72" cy="72" rx="16" ry="11" fill="#fde68a" stroke="#292524" stroke-width="2.2"/>
+            <circle cx="66" cy="70" r="2.5" fill="#fb7185"/>
+            <circle cx="74" cy="68" r="2.5" fill="#38bdf8"/>
+            <circle cx="77" cy="75" r="2.5" fill="#a3e635"/>
+          </svg>
+        `
+      },
+      {
+        id: 'sylvanian-bunny',
+        label: 'Conejito Sylvanian',
+        svg: `
+          <svg viewBox="0 0 90 96" class="w-18 h-20">
+            <ellipse cx="34" cy="20" rx="6" ry="17" transform="rotate(-8 34 20)" fill="#fffaf0" stroke="#292524" stroke-width="2.5"/>
+            <ellipse cx="56" cy="20" rx="6" ry="17" transform="rotate(8 56 20)" fill="#fffaf0" stroke="#292524" stroke-width="2.5"/>
+            <ellipse cx="34" cy="21" rx="3" ry="11" transform="rotate(-8 34 21)" fill="#fda4af"/>
+            <ellipse cx="56" cy="21" rx="3" ry="11" transform="rotate(8 56 21)" fill="#fda4af"/>
+            <circle cx="45" cy="44" r="19" fill="#fffaf0" stroke="#292524" stroke-width="2.5"/>
+            <circle cx="38" cy="42" r="2.4" fill="#292524"/>
+            <circle cx="52" cy="42" r="2.4" fill="#292524"/>
+            <ellipse cx="45" cy="47" rx="2.5" ry="1.8" fill="#fb7185"/>
+            <path d="M26,88 L32,61 L58,61 L64,88 Z" fill="#f9a8d4" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M32,61 Q45,67 58,61" fill="none" stroke="#ffffff" stroke-width="3"/>
+          </svg>
+        `
+      },
+      {
+        id: 'sylvanian-bear',
+        label: 'Osito Sylvanian',
+        svg: `
+          <svg viewBox="0 0 90 96" class="w-18 h-20">
+            <circle cx="29" cy="28" r="8" fill="#d4a373" stroke="#292524" stroke-width="2.5"/>
+            <circle cx="61" cy="28" r="8" fill="#d4a373" stroke="#292524" stroke-width="2.5"/>
+            <circle cx="45" cy="44" r="19" fill="#d4a373" stroke="#292524" stroke-width="2.5"/>
+            <ellipse cx="45" cy="48" rx="7" ry="5.5" fill="#fef3c7"/>
+            <circle cx="38" cy="41" r="2.4" fill="#292524"/>
+            <circle cx="52" cy="41" r="2.4" fill="#292524"/>
+            <circle cx="45" cy="46" r="2.2" fill="#292524"/>
+            <path d="M27,88 L32,61 L58,61 L63,88 Z" fill="#6ee7b7" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
+            <rect x="37" y="61" width="16" height="16" rx="2" fill="#34d399" stroke="#292524" stroke-width="2"/>
+          </svg>
+        `
+      },
+      {
+        id: 'plant',
+        label: 'Plantita',
+        svg: `
+          <svg viewBox="0 0 88 92" class="w-18 h-18">
+            <path d="M44,54 C28,44 20,28 32,20 C42,26 44,40 44,54 Z" fill="#34d399" stroke="#292524" stroke-width="2.4"/>
+            <path d="M44,54 C60,44 68,28 56,20 C46,26 44,40 44,54 Z" fill="#10b981" stroke="#292524" stroke-width="2.4"/>
+            <path d="M44,54 C40,34 44,16 44,12 C48,18 48,36 44,54 Z" fill="#6ee7b7" stroke="#292524" stroke-width="2.4"/>
+            <polygon points="27,54 61,54 55,84 33,84" fill="#e07a5f" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
+            <rect x="24" y="50" width="40" height="7" rx="3.5" fill="#f28482" stroke="#292524" stroke-width="2.4"/>
+          </svg>
+        `
+      },
+      {
+        id: 'lamp',
+        label: 'Lámpara cálida',
+        svg: `
+          <svg viewBox="0 0 88 92" class="w-18 h-18">
+            <circle cx="44" cy="42" r="32" fill="#fde68a" opacity="0.22"/>
+            <polygon points="26,20 62,20 72,50 16,50" fill="#fbbf24" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
+            <rect x="41" y="50" width="6" height="26" fill="#78350f" stroke="#292524" stroke-width="2.2"/>
+            <ellipse cx="44" cy="79" rx="16" ry="5" fill="#92400e" stroke="#292524" stroke-width="2.4"/>
+          </svg>
+        `
+      },
+      {
+        id: 'candle',
+        label: 'Vela aromática',
+        svg: `
+          <svg viewBox="0 0 84 92" class="w-16 h-18">
+            <circle cx="42" cy="28" r="18" fill="#fbbf24" opacity="0.25"/>
+            <path d="M42,16 C48,24 48,32 42,35 C36,32 36,24 42,16 Z" fill="#fb923c" stroke="#292524" stroke-width="2"/>
+            <rect x="27" y="38" width="30" height="42" rx="7" fill="#fef3c7" stroke="#292524" stroke-width="2.5"/>
+            <path d="M27,46 Q35,52 42,46 T57,46" fill="none" stroke="#fde68a" stroke-width="3"/>
+          </svg>
+        `
+      },
+      {
+        id: 'books',
+        label: 'Pila de libros',
+        svg: `
+          <svg viewBox="0 0 92 84" class="w-20 h-16">
+            <rect x="14" y="54" width="64" height="16" rx="4" fill="#f9a8d4" stroke="#292524" stroke-width="2.4"/>
+            <rect x="18" y="38" width="58" height="16" rx="4" fill="#93c5fd" stroke="#292524" stroke-width="2.4"/>
+            <rect x="22" y="22" width="52" height="16" rx="4" fill="#fde68a" stroke="#292524" stroke-width="2.4"/>
+            <line x1="26" y1="62" x2="68" y2="62" stroke="#fffbeb" stroke-width="2.5"/>
+            <line x1="28" y1="46" x2="66" y2="46" stroke="#fffbeb" stroke-width="2.5"/>
+          </svg>
+        `
+      },
+      {
+        id: 'cushion',
+        label: 'Cojín mullido',
+        svg: `
+          <svg viewBox="0 0 92 84" class="w-20 h-16">
+            <path d="M20,24 Q46,16 72,24 Q80,46 72,68 Q46,76 20,68 Q12,46 20,24 Z" fill="#c4b5fd" stroke="#292524" stroke-width="2.5"/>
+            <circle cx="46" cy="46" r="5" fill="#fde68a" stroke="#292524" stroke-width="2"/>
+          </svg>
+        `
+      },
+      {
+        id: 'mug',
+        label: 'Taza humeante',
+        svg: `
+          <svg viewBox="0 0 88 88" class="w-18 h-18">
+            <path d="M32,24 Q28,16 34,10" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+            <path d="M46,24 Q42,16 48,10" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+            <rect x="22" y="32" width="40" height="38" rx="10" fill="#fffbeb" stroke="#292524" stroke-width="2.5"/>
+            <path d="M62,40 Q74,40 74,50 Q74,60 62,60" fill="none" stroke="#292524" stroke-width="3"/>
+            <text x="34" y="56" font-size="14">🤎</text>
+          </svg>
+        `
+      }
+    ];
+
+    function renderDecorCatalog() {
+      const grid = document.getElementById('decor-catalog-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      DECOR_CATALOG.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'p-2 rounded-2xl bg-white/5 hover:bg-white/15 border border-current/10 flex flex-col items-center justify-between gap-1 transition-transform active:scale-95 cursor-pointer';
+        btn.innerHTML = `
+          <div class="flex items-center justify-center h-14">${item.svg}</div>
+          <span class="text-[10px] font-bold leading-tight">${escapeHtml(item.label)}</span>
+        `;
+        btn.addEventListener('click', () => {
+          const decorId = 'decor_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+          const xPct = Number((42 + (Math.random() * 16 - 8)).toFixed(2));
+          const yPct = Number((48 + (Math.random() * 16 - 8)).toFixed(2));
+          const payload = { id: decorId, type: item.id, x: xPct, y: yPct };
+          renderOrUpdateDecorElement(payload);
+          syncDecorToFirebase(payload);
+          showToast(`✨ ${item.label} añadido a la sala`);
+        });
+        grid.appendChild(btn);
       });
     }
 
-    function renderAmbientCanvas() {
-      try {
-        const canvas = document.getElementById('ambient-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+    let draggingDecorId = null;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function syncDecorToFirebase(decorData) {
+      if (!db || !decorData || !decorData.id) return;
+      const ref = roomRef(`decor/${decorData.id}`);
+      if (ref) ref.set(decorData).catch(() => {});
+    }
 
-        if (ambientEffectMode === 'rain') {
-          ctx.strokeStyle = 'rgba(219, 234, 254, 0.36)';
-          ctx.lineWidth = 1.2;
-          ctx.lineCap = 'round';
-          for (const p of particles) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p.x + p.speedX * 2, p.y + p.len);
-            ctx.stroke();
+    function removeDecorFromFirebase(decorId) {
+      if (!db || !decorId) return;
+      const ref = roomRef(`decor/${decorId}`);
+      if (ref) ref.remove().catch(() => {});
+    }
 
-            p.x += p.speedX;
-            p.y += p.speedY;
-            if (p.y > canvas.height) {
-              p.y = -20;
-              p.x = Math.random() * canvas.width;
-            }
-            if (p.x < 0) p.x = canvas.width;
-          }
-        } else if (ambientEffectMode === 'fireflies') {
-          for (const f of particles) {
-            f.phase += 0.03;
-            const alpha = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(f.phase));
-            ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(2)})`;
-            ctx.beginPath();
-            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-            ctx.fill();
+    function renderOrUpdateDecorElement(decorData) {
+      const meta = DECOR_CATALOG.find((d) => d.id === decorData.type);
+      const layer = document.getElementById('stickers-layer');
+      if (!meta || !layer) return;
 
-            f.x += f.vx;
-            f.y += f.vy;
-            if (f.x < 0) f.x = canvas.width;
-            if (f.x > canvas.width) f.x = 0;
-            if (f.y < 0) f.y = canvas.height;
-            if (f.y > canvas.height) f.y = 0;
-          }
+      let el = document.getElementById(`decor-item-${decorData.id}`);
+      const leftPx = Math.max(24, Math.min(window.innerWidth - 110, Math.round((window.innerWidth * (Number(decorData.x) || 45)) / 100)));
+      const topPx = Math.max(72, Math.min(window.innerHeight - 150, Math.round((window.innerHeight * (Number(decorData.y) || 50)) / 100)));
+
+      if (el) {
+        if (draggingDecorId !== decorData.id) {
+          el.style.left = `${leftPx}px`;
+          el.style.top = `${topPx}px`;
         }
-      } catch (err) {
-        // Evitar detener el bucle ante un error puntual de renderizado
+        return;
       }
-      requestAnimationFrame(renderAmbientCanvas);
+
+      highestZ += 1;
+      el = document.createElement('div');
+      el.id = `decor-item-${decorData.id}`;
+      el.style.left = `${leftPx}px`;
+      el.style.top = `${topPx}px`;
+      el.style.zIndex = String(highestZ);
+      el.className = 'draggable-entity pointer-events-auto absolute group flex flex-col items-center p-1.5 rounded-2xl hover:bg-white/5';
+      el.title = `${meta.label} · Arrastra o pulsa ✕ para quitar`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'opacity-0 group-hover:opacity-100 absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center shadow transition-opacity cursor-pointer';
+      removeBtn.textContent = '✕';
+      removeBtn.title = 'Quitar objeto';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.remove();
+        removeDecorFromFirebase(decorData.id);
+      });
+
+      const artWrap = document.createElement('div');
+      artWrap.className = 'drop-shadow-xl pointer-events-none';
+      artWrap.innerHTML = meta.svg;
+
+      const labelTag = document.createElement('span');
+      labelTag.className = 'mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity';
+      labelTag.textContent = meta.label;
+
+      el.appendChild(removeBtn);
+      el.appendChild(artWrap);
+      el.appendChild(labelTag);
+      el.addEventListener('dblclick', () => {
+        el.remove();
+        removeDecorFromFirebase(decorData.id);
+      });
+
+      layer.appendChild(el);
+      enableDrag(el, el, {
+        onDragStart: () => {
+          draggingDecorId = decorData.id;
+        },
+        onDragMove: (lx, ty) => {
+          decorData.x = Number(((lx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+          decorData.y = Number(((ty / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+          syncDecorToFirebase(decorData);
+        },
+        onDragEnd: (lx, ty) => {
+          decorData.x = Number(((lx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+          decorData.y = Number(((ty / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+          draggingDecorId = null;
+          syncDecorToFirebase(decorData);
+        }
+      });
     }
 
     // ---------------------------------------------------------
-    // 3. MINI YOUTUBE CON BUSCADOR, SUGERENCIAS Y FALLBACK
+    // 4. MINI YOUTUBE CON BUSCADOR Y SINCRONIZACIÓN
     // ---------------------------------------------------------
-    const youtubeCatalog = [
-      { id: 'jfKfPfyJRdk', title: 'Lofi Hip Hop Radio 🎧', label: '▶ Lofi Hip Hop Radio' },
-      { id: '4xDzrJKXOOY', title: 'Música para Leer 📖', label: '▶ Música para Leer' },
-      { id: 'mPZkdNFkNps', title: 'Sonidos de Lluvia 🌧️', label: '▶ Sonidos de Lluvia' },
-      { id: '7NOSDKb0HlU', title: 'Piano Relajante 🎹', label: '▶ Piano Relajante' },
-      { id: 'DWcJFNfaw9c', title: 'Chill Lofi Study Beats ✨', label: '▶ Chill Lofi Study' },
-      { id: 'lTRiuFIWV54', title: 'Ambiente Nocturno Cozy 🕯️', label: '▶ Noche Acogedora' }
+    const YOUTUBE_TRACKS = [
+      { id: 'jfKfPfyJRdk', title: 'Lofi Girl 🎧', label: '▶ Lofi Girl Beats' },
+      { id: 'mPZkdNFkNps', title: 'Lluvia y Chimenea 🔥', label: '▶ Lluvia y Chimenea' },
+      { id: '7NOSDKb0HlU', title: 'Piano Estudio 🎹', label: '▶ Piano Suave Estudio' },
+      { id: 'lTRiuFIWV54', title: 'Ghibli Relax ✨', label: '▶ Melodías Ghibli' },
+      { id: '4xDzrJKXOOY', title: 'Synthwave Lofi 🌙', label: '▶ Noche Synth Lofi' }
     ];
 
     function extractYoutubeId(text) {
@@ -1487,68 +1982,86 @@
       return match ? match[1] : null;
     }
 
-    function selectYoutubeTrack(videoId, title) {
-      try {
-        const iframe = document.getElementById('youtube-iframe');
-        const fallback = document.getElementById('youtube-fallback');
-        const nowPlaying = document.getElementById('youtube-now-playing');
-        const extLink = document.getElementById('youtube-external-link');
+    function applyYoutubeState(videoData) {
+      const iframe = document.getElementById('youtube-iframe');
+      const fallback = document.getElementById('youtube-fallback');
+      const label = document.getElementById('youtube-now-playing');
+      const extLink = document.getElementById('youtube-external-link');
 
-        if (fallback) fallback.classList.add('hidden');
-        if (iframe) {
-          iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
-        }
-        if (nowPlaying) nowPlaying.textContent = title || 'Vídeo de YouTube';
-        if (extLink) extLink.href = `https://www.youtube.com/watch?v=${videoId}`;
-        showToast(`🎶 ${title}`);
-      } catch (err) {
-        console.error('Error al cargar vídeo:', err);
-        showYoutubeFallback();
+      if (!videoData) return;
+      if (fallback) fallback.classList.add('hidden');
+
+      if (videoData.searchQuery) {
+        const encoded = encodeURIComponent(videoData.searchQuery);
+        const targetSrc = `https://www.youtube.com/embed?listType=search&list=${encoded}&autoplay=1&rel=0`;
+        if (iframe && iframe.src !== targetSrc) iframe.src = targetSrc;
+        if (label) label.textContent = videoData.title || `🔍 ${videoData.searchQuery}`;
+        if (extLink) extLink.href = `https://www.youtube.com/results?search_query=${encoded}`;
+      } else if (videoData.videoId) {
+        const targetSrc = `https://www.youtube-nocookie.com/embed/${videoData.videoId}?autoplay=1&rel=0`;
+        if (iframe && iframe.src !== targetSrc) iframe.src = targetSrc;
+        if (label) label.textContent = videoData.title || 'Vídeo en sala 🎬';
+        if (extLink) extLink.href = `https://www.youtube.com/watch?v=${videoData.videoId}`;
       }
     }
 
-    function renderYoutubeSuggestions(matches) {
+    function selectYoutubeTrack(videoId, title, broadcast = false) {
+      const payload = { videoId, searchQuery: '', title, updatedAt: Date.now() };
+      applyYoutubeState(payload);
+      if (broadcast && db) {
+        const ref = roomRef('video');
+        if (ref) ref.set(payload).catch(() => {});
+      }
+      showToast(`🎶 ${title}`);
+    }
+
+    function renderYoutubeSuggestions(list) {
       const container = document.getElementById('youtube-suggestions');
       if (!container) return;
       container.innerHTML = '';
-
-      matches.slice(0, 4).forEach((item) => {
+      list.slice(0, 2).forEach((item) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'text-left px-2.5 py-1.5 rounded-xl bg-black/15 hover:bg-white/10 border border-current/10 truncate transition-colors cursor-pointer';
         btn.textContent = item.label;
-        btn.addEventListener('click', () => selectYoutubeTrack(item.id, item.title));
+        btn.addEventListener('click', () => selectYoutubeTrack(item.id, item.title, true));
         container.appendChild(btn);
       });
     }
 
     function handleYoutubeSubmit(event) {
       event.preventDefault();
-      try {
-        const input = document.getElementById('youtube-search-input');
-        const query = input ? input.value.trim() : '';
-        if (!query) {
-          showToast('Escribe una palabra clave o pega un enlace/ID');
-          return;
-        }
-
-        const directId = extractYoutubeId(query);
-        if (directId) {
-          selectYoutubeTrack(directId, 'Vídeo personalizado 🎬');
-          return;
-        }
-
-        const qLower = query.toLowerCase();
-        const filtered = youtubeCatalog.filter(
-          (item) => item.title.toLowerCase().includes(qLower) || item.label.toLowerCase().includes(qLower)
-        );
-        const listToShow = filtered.length > 0 ? filtered : youtubeCatalog;
-        renderYoutubeSuggestions(listToShow);
-        selectYoutubeTrack(listToShow[0].id, listToShow[0].title);
-      } catch (err) {
-        console.error('Error en búsqueda de YouTube:', err);
-        showYoutubeFallback();
+      const input = document.getElementById('youtube-search-input');
+      const query = input ? input.value.trim() : '';
+      if (!query) {
+        showToast('Escribe una búsqueda o pega un enlace/ID');
+        return;
       }
+
+      const directId = extractYoutubeId(query);
+      if (directId) {
+        selectYoutubeTrack(directId, 'Vídeo personalizado 🎬', true);
+        return;
+      }
+
+      const q = query.toLowerCase();
+      const filtered = YOUTUBE_TRACKS.filter(
+        (t) => t.title.toLowerCase().includes(q) || t.label.toLowerCase().includes(q)
+      );
+      if (filtered.length > 0) renderYoutubeSuggestions(filtered);
+
+      const payload = {
+        videoId: '',
+        searchQuery: query,
+        title: `🔍 ${query}`,
+        updatedAt: Date.now()
+      };
+      applyYoutubeState(payload);
+      if (db) {
+        const ref = roomRef('video');
+        if (ref) ref.set(payload).catch(() => {});
+      }
+      showToast(`🔍 Buscando "${query}" en YouTube`);
     }
 
     function showYoutubeFallback() {
@@ -1557,7 +2070,7 @@
     }
 
     // ---------------------------------------------------------
-    // 4. CHAT DE SALA
+    // 5. CHAT DE SALA EN TIEMPO REAL
     // ---------------------------------------------------------
     function escapeHtml(str) {
       return String(str)
@@ -1574,145 +2087,289 @@
       input.focus();
     }
 
+    function renderChatList(messagesArray) {
+      const box = document.getElementById('chat-messages');
+      if (!box) return;
+      box.innerHTML = '';
+
+      if (!messagesArray || messagesArray.length === 0) {
+        box.innerHTML = `
+          <div class="text-center opacity-60 py-6 text-[11px]">
+            ✨ ¡Bienvenida a la sala <strong>${escapeHtml(currentRoomId)}</strong>! Escribe algo bonito para empezar.
+          </div>
+        `;
+        return;
+      }
+
+      messagesArray.forEach((msg) => {
+        const isMine = msg.senderId === myUserId;
+        const row = document.createElement('div');
+        row.className = `flex flex-col gap-0.5 ${isMine ? 'items-end' : 'items-start'}`;
+
+        if (isMine) {
+          row.innerHTML = `
+            <span class="text-[11px] font-bold mr-1" style="color: ${escapeHtml(msg.color || '#fde68a')};">${escapeHtml(msg.sender || 'Tú')} ✨</span>
+            <div class="px-3 py-2 rounded-2xl rounded-tr-sm bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 font-semibold max-w-[85%] leading-relaxed break-words">
+              ${escapeHtml(msg.text || '')}
+            </div>
+          `;
+        } else {
+          row.innerHTML = `
+            <span class="text-[11px] font-bold ml-1" style="color: ${escapeHtml(msg.color || '#f9a8d4')};">${escapeHtml(msg.sender || 'Amiga')} 🌸</span>
+            <div class="px-3 py-2 rounded-2xl rounded-tl-sm bg-white/10 border border-white/5 max-w-[85%] leading-relaxed break-words">
+              ${escapeHtml(msg.text || '')}
+            </div>
+          `;
+        }
+        box.appendChild(row);
+      });
+
+      box.scrollTop = box.scrollHeight;
+    }
+
     function sendChatMessage(event) {
       event.preventDefault();
-      try {
-        const input = document.getElementById('chat-input');
-        const userInput = document.getElementById('chat-username-input');
-        const box = document.getElementById('chat-messages');
-        if (!input || !box) return;
+      const input = document.getElementById('chat-input');
+      const box = document.getElementById('chat-messages');
+      if (!input || !box) return;
 
-        const text = input.value.trim();
-        if (!text) return;
+      const text = input.value.trim();
+      if (!text) return;
 
-        const username = userInput && userInput.value.trim() ? userInput.value.trim() : 'Tú';
+      const localUser = participants.find((p) => p.id === myUserId) || participants[0] || { name: 'Tú', color: '#fde68a' };
+      const msgObj = {
+        senderId: myUserId,
+        sender: localUser.name || 'Tú',
+        color: localUser.color || '#fde68a',
+        text,
+        timestamp: Date.now()
+      };
+
+      if (db && firebaseConnected) {
+        const ref = roomRef('chat');
+        if (ref) ref.push(msgObj).catch(() => {});
+      } else {
         const row = document.createElement('div');
         row.className = 'flex flex-col gap-0.5 items-end';
         row.innerHTML = `
-          <span class="text-[11px] font-bold text-orange-300 mr-1">${escapeHtml(username)}</span>
+          <span class="text-[11px] font-bold mr-1" style="color: ${msgObj.color};">${escapeHtml(msgObj.sender)} ✨</span>
           <div class="px-3 py-2 rounded-2xl rounded-tr-sm bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 font-semibold max-w-[85%] leading-relaxed break-words">
-            ${escapeHtml(text)}
+            ${escapeHtml(msgObj.text)}
           </div>
         `;
         box.appendChild(row);
         box.scrollTop = box.scrollHeight;
-        input.value = '';
-      } catch (err) {
-        console.error('Error al enviar mensaje:', err);
       }
+
+      input.value = '';
     }
 
     // ---------------------------------------------------------
-    // 5. VIDEOLLAMADA CON GETUSERMEDIA Y MANEJO SEGURO DE ERRORES
+    // 6. VIDEOLLAMADA REAL CON JITSI MEET
     // ---------------------------------------------------------
-    let localStream = null;
-    let micEnabled = true;
+    let jitsiApi = null;
+    let jitsiScriptLoaded = false;
 
-    async function toggleCamera() {
-      const videoEl = document.getElementById('local-video');
-      const placeholder = document.getElementById('local-video-placeholder');
-      const statusNote = document.getElementById('cam-status-note');
-      const btnText = document.getElementById('cam-btn-text');
+    function loadJitsiExternalApi() {
+      return new Promise((resolve) => {
+        if (window.JitsiMeetExternalAPI) {
+          resolve(true);
+          return;
+        }
+        if (jitsiScriptLoaded) {
+          resolve(Boolean(window.JitsiMeetExternalAPI));
+          return;
+        }
+        jitsiScriptLoaded = true;
+        const script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        script.onload = () => resolve(Boolean(window.JitsiMeetExternalAPI));
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+    }
+
+    async function joinJitsiCall() {
+      const standby = document.getElementById('jitsi-standby-view');
+      const activeWrapper = document.getElementById('jitsi-active-wrapper');
+      const mountEl = document.getElementById('jitsi-mount-container');
+      if (!standby || !activeWrapper || !mountEl) return;
+
+      standby.classList.add('hidden');
+      activeWrapper.classList.remove('hidden');
+      activeWrapper.classList.add('flex');
+      mountEl.innerHTML = '';
+
+      const roomSlug = `CozyRoom-${sanitizeRoomSlug(currentRoomId)}`;
+      const localUser = participants.find((p) => p.id === myUserId) || { name: 'Amiga Cozy' };
+
+      const apiReady = await loadJitsiExternalApi();
+      if (apiReady && window.JitsiMeetExternalAPI) {
+        try {
+          jitsiApi = new window.JitsiMeetExternalAPI('meet.jit.si', {
+            roomName: roomSlug,
+            parentNode: mountEl,
+            width: '100%',
+            height: '100%',
+            userInfo: { displayName: localUser.name || 'Amiga Cozy' },
+            configOverwrite: {
+              prejoinPageEnabled: false,
+              startWithAudioMuted: false,
+              startWithVideoMuted: false
+            },
+            interfaceConfigOverwrite: {
+              TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'tileview']
+            }
+          });
+          jitsiApi.addEventListener('videoConferenceLeft', () => {
+            leaveJitsiCall();
+          });
+          showToast('📹 Conectada a la videollamada');
+          return;
+        } catch (err) {
+          // Si falla la API externa, usamos el iframe directo
+        }
+      }
+
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://meet.jit.si/${encodeURIComponent(roomSlug)}#config.prejoinPageEnabled=false`;
+      iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
+      iframe.className = 'w-full h-full border-0';
+      mountEl.appendChild(iframe);
+      showToast('📹 Videollamada abierta');
+    }
+
+    function leaveJitsiCall() {
+      const standby = document.getElementById('jitsi-standby-view');
+      const activeWrapper = document.getElementById('jitsi-active-wrapper');
+      const mountEl = document.getElementById('jitsi-mount-container');
+
+      if (jitsiApi) {
+        try {
+          jitsiApi.dispose();
+        } catch (e) {
+          // Ignorar error al limpiar instancia
+        }
+        jitsiApi = null;
+      }
+      if (mountEl) mountEl.innerHTML = '';
+      if (activeWrapper) {
+        activeWrapper.classList.add('hidden');
+        activeWrapper.classList.remove('flex');
+      }
+      if (standby) standby.classList.remove('hidden');
+      showToast('📵 Saliste de la videollamada');
+    }
+
+    // ---------------------------------------------------------
+    // 6B. SINTETIZADOR DE SONIDO AMBIENTAL (WEB AUDIO API)
+    // ---------------------------------------------------------
+    let audioCtx = null;
+    let ambientSoundNode = null;
+    let ambientGainNode = null;
+    let ambientSoundActive = false;
+
+    function toggleAmbientAudio() {
+      const btnIcon = document.getElementById('ambient-audio-icon');
+      const btnLabel = document.getElementById('ambient-audio-label');
+
+      if (ambientSoundActive) {
+        if (ambientSoundNode) {
+          try {
+            ambientSoundNode.stop();
+            ambientSoundNode.disconnect();
+          } catch (e) {}
+          ambientSoundNode = null;
+        }
+        ambientSoundActive = false;
+        if (btnIcon) btnIcon.className = 'ph-fill ph-speaker-slash text-amber-300 text-sm';
+        if (btnLabel) btnLabel.textContent = 'Sonido';
+        showToast('🔇 Sonido ambiental pausado');
+        return;
+      }
 
       try {
-        if (localStream) {
-          localStream.getTracks().forEach((t) => t.stop());
-          localStream = null;
-          if (videoEl) {
-            videoEl.srcObject = null;
-            videoEl.classList.add('hidden');
-          }
-          if (placeholder) placeholder.classList.remove('hidden');
-          if (statusNote) statusNote.textContent = 'Cámara apagada';
-          if (btnText) btnText.textContent = 'Activar cámara';
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          showToast('Audio no soportado en este navegador');
           return;
         }
+        if (!audioCtx) audioCtx = new AudioContextClass();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
 
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-          if (statusNote) statusNote.textContent = 'Sin cámara disponible · Vista en sala';
-          showToast('Cámara no disponible en este entorno');
-          return;
+        // Generar ruido rosa suave estilo lluvia tranquila sobre ventana
+        const bufferSize = audioCtx.sampleRate * 3;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
+          b6 = white * 0.115926;
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: micEnabled
-        });
-        localStream = stream;
+        const source = audioCtx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
 
-        if (videoEl) {
-          videoEl.srcObject = stream;
-          videoEl.classList.remove('hidden');
-        }
-        if (placeholder) placeholder.classList.add('hidden');
-        if (btnText) btnText.textContent = 'Apagar cámara';
-        showToast('📷 Cámara activada');
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 620;
+
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.45;
+
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        source.start(0);
+
+        ambientSoundNode = source;
+        ambientGainNode = gain;
+        ambientSoundActive = true;
+
+        if (btnIcon) btnIcon.className = 'ph-fill ph-speaker-high text-emerald-300 text-sm';
+        if (btnLabel) btnLabel.textContent = 'Lluvia ON';
+        showToast('🌧️ Lluvia suave ambiental activada');
       } catch (err) {
-        if (statusNote) statusNote.textContent = 'Permiso denegado o sin cámara';
-        showToast('No se pudo acceder a la cámara');
+        showToast('No se pudo activar el sonido ambiental');
       }
-    }
-
-    function toggleMic() {
-      micEnabled = !micEnabled;
-      const icon = document.getElementById('mic-icon');
-      const text = document.getElementById('mic-btn-text');
-
-      if (localStream) {
-        localStream.getAudioTracks().forEach((track) => {
-          track.enabled = micEnabled;
-        });
-      }
-
-      if (icon) {
-        icon.className = micEnabled ? 'ph-bold ph-microphone' : 'ph-bold ph-microphone-slash text-rose-400';
-      }
-      if (text) {
-        text.textContent = micEnabled ? 'Micro' : 'Silencio';
-      }
-      showToast(micEnabled ? '🎙️ Micrófono activo' : '🔇 Micrófono silenciado');
     }
 
     // ---------------------------------------------------------
-    // 6. CRONÓMETRO Y TEMPORIZADOR DUAL
+    // 7. TEMPORIZADOR Y CRONÓMETRO DE LECTURA
     // ---------------------------------------------------------
     let clockMode = 'countdown';
-    let countdownTotalSeconds = 25 * 60;
-    let clockSeconds = 25 * 60;
-    let clockTimer = null;
-    let accumulatedMinutesToday = 15;
-    let secondsTickForAccum = 0;
+    let countdownBaseSec = 30 * 60;
+    let clockSec = 30 * 60;
+    let clockInterval = null;
+    let minutesToday = 20;
+    let secTick = 0;
 
-    function formatTimeHMS(totalSec) {
-      const safe = Math.max(0, Math.floor(totalSec));
-      const h = Math.floor(safe / 3600);
-      const m = Math.floor((safe % 3600) / 60).toString().padStart(2, '0');
-      const s = (safe % 60).toString().padStart(2, '0');
-      if (clockMode === 'stopwatch') {
-        return `${h.toString().padStart(2, '0')}:${m}:${s}`;
-      }
-      return h > 0 ? `${h.toString().padStart(2, '0')}:${m}:${s}` : `${m}:${s}`;
+    function formatClock(sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+      const r = (s % 60).toString().padStart(2, '0');
+      return h > 0 ? `${h.toString().padStart(2, '0')}:${m}:${r}` : `${m}:${r}`;
     }
 
-    function updateClockDisplay() {
-      const display = document.getElementById('clock-display');
-      if (display) display.textContent = formatTimeHMS(clockSeconds);
-    }
-
-    function updateAccumulatedUI() {
-      const badge = document.getElementById('today-minutes-badge');
-      const bar = document.getElementById('today-progress-bar');
-      if (badge) badge.textContent = `${accumulatedMinutesToday} min`;
-      if (bar) {
-        const pct = Math.min(100, Math.round((accumulatedMinutesToday / 60) * 100));
-        bar.style.width = `${pct}%`;
-      }
+    function updateClockUI() {
+      const el = document.getElementById('clock-display');
+      if (el) el.textContent = formatClock(clockSec);
     }
 
     function switchClockMode(mode) {
-      if (clockTimer) {
-        clearInterval(clockTimer);
-        clockTimer = null;
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
       }
       clockMode = mode;
       const startBtn = document.getElementById('clock-start-btn');
@@ -1721,358 +2378,269 @@
       const btnCount = document.getElementById('mode-countdown-btn');
       const btnStop = document.getElementById('mode-stopwatch-btn');
       const controls = document.getElementById('countdown-controls');
-      const subtitle = document.getElementById('clock-subtitle');
+      const sub = document.getElementById('clock-subtitle');
 
       if (mode === 'countdown') {
         if (btnCount) btnCount.className = 'py-1.5 rounded-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 transition-all cursor-pointer';
         if (btnStop) btnStop.className = 'py-1.5 rounded-xl font-semibold opacity-75 hover:opacity-100 transition-all cursor-pointer';
         if (controls) controls.classList.remove('hidden');
-        if (subtitle) subtitle.textContent = 'Sesión tranquila de lectura';
-        clockSeconds = countdownTotalSeconds;
+        if (sub) sub.textContent = 'Sesión tranquila de lectura';
+        clockSec = countdownBaseSec;
       } else {
         if (btnStop) btnStop.className = 'py-1.5 rounded-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 text-stone-900 transition-all cursor-pointer';
         if (btnCount) btnCount.className = 'py-1.5 rounded-xl font-semibold opacity-75 hover:opacity-100 transition-all cursor-pointer';
         if (controls) controls.classList.add('hidden');
-        if (subtitle) subtitle.textContent = 'Cronómetro libre en sala';
-        clockSeconds = 0;
+        if (sub) sub.textContent = 'Cronómetro libre';
+        clockSec = 0;
       }
-      updateClockDisplay();
+      updateClockUI();
     }
 
     function setCountdownMinutes(mins) {
-      if (clockTimer) {
-        clearInterval(clockTimer);
-        clockTimer = null;
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
       }
-      countdownTotalSeconds = mins * 60;
-      clockSeconds = countdownTotalSeconds;
+      countdownBaseSec = mins * 60;
+      clockSec = countdownBaseSec;
       const startBtn = document.getElementById('clock-start-btn');
       if (startBtn) startBtn.textContent = 'Iniciar';
-      updateClockDisplay();
+      updateClockUI();
 
       document.querySelectorAll('.preset-btn').forEach((btn) => {
-        const isCurrent = btn.textContent.trim() === `${mins}m`;
-        btn.className = isCurrent
+        const active = btn.textContent.trim() === `${mins}m`;
+        btn.className = active
           ? 'preset-btn py-1.5 rounded-xl text-xs font-bold bg-amber-300 text-stone-900 cursor-pointer'
           : 'preset-btn py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/15 border border-current/10 cursor-pointer';
       });
     }
 
-    function applyCustomCountdown() {
-      const input = document.getElementById('custom-mins-input');
-      const val = input ? parseInt(input.value, 10) : NaN;
-      if (!Number.isNaN(val) && val >= 1 && val <= 360) {
-        setCountdownMinutes(val);
-        showToast(`⏱️ Temporizador fijado en ${val} min`);
-      } else {
-        showToast('Introduce entre 1 y 360 minutos');
-      }
-    }
-
-    function playGentleChime() {
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(528, ctx.currentTime);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.1);
-      } catch (err) {
-        // Ignorar si el audio está bloqueado
-      }
-    }
-
     function toggleClockRun() {
       const startBtn = document.getElementById('clock-start-btn');
-      if (clockTimer) {
-        clearInterval(clockTimer);
-        clockTimer = null;
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
         if (startBtn) startBtn.textContent = 'Reanudar';
         return;
       }
 
       if (startBtn) startBtn.textContent = 'Pausar';
-      clockTimer = setInterval(() => {
-        secondsTickForAccum += 1;
-        if (secondsTickForAccum >= 60) {
-          secondsTickForAccum = 0;
-          accumulatedMinutesToday += 1;
-          updateAccumulatedUI();
+      clockInterval = setInterval(() => {
+        secTick += 1;
+        if (secTick >= 60) {
+          secTick = 0;
+          minutesToday += 1;
+          const badge = document.getElementById('today-minutes-badge');
+          const bar = document.getElementById('today-progress-bar');
+          if (badge) badge.textContent = `${minutesToday} min`;
+          if (bar) bar.style.width = `${Math.min(100, Math.round((minutesToday / 60) * 100))}%`;
         }
 
         if (clockMode === 'countdown') {
-          if (clockSeconds > 0) {
-            clockSeconds -= 1;
-            updateClockDisplay();
+          if (clockSec > 0) {
+            clockSec -= 1;
+            updateClockUI();
           } else {
-            clearInterval(clockTimer);
-            clockTimer = null;
+            clearInterval(clockInterval);
+            clockInterval = null;
             if (startBtn) startBtn.textContent = 'Iniciar';
-            playGentleChime();
-            showToast('🔔 ¡Tiempo de sesión completado!');
+            showToast('🔔 ¡Sesión de lectura completada!');
           }
         } else {
-          clockSeconds += 1;
-          updateClockDisplay();
+          clockSec += 1;
+          updateClockUI();
         }
       }, 1000);
     }
 
     function resetClock() {
-      if (clockTimer) {
-        clearInterval(clockTimer);
-        clockTimer = null;
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
       }
       const startBtn = document.getElementById('clock-start-btn');
       if (startBtn) startBtn.textContent = 'Iniciar';
-      clockSeconds = clockMode === 'countdown' ? countdownTotalSeconds : 0;
-      updateClockDisplay();
+      clockSec = clockMode === 'countdown' ? countdownBaseSec : 0;
+      updateClockUI();
     }
 
     // ---------------------------------------------------------
-    // 7. PERSONAJE COZY SVG CON VESTIDOR COMBINABLE
+    // 8. FONDOS Y PARTÍCULAS AMBIENTALES EN CANVAS
     // ---------------------------------------------------------
-    const charState = {
-      base: 'reader', // 'reader' | 'cat' | 'bear' | 'ghost'
-      color: '#fde68a',
-      moodText: 'Leyendo',
-      moodEmoji: '📖',
-      accessories: {
-        santa: true,
-        glasses: true,
-        flowers: false,
-        beret: false,
-        headphones: false
-      },
-      prop: 'book' // 'none' | 'book' | 'coffee'
-    };
+    let ambientMode = 'none';
+    let particles = [];
 
-    function renderCharacter() {
-      const container = document.getElementById('char-svg-container');
-      const bubbleText = document.getElementById('char-status-text');
-      const bubbleEmoji = document.getElementById('char-status-emoji');
-      if (!container) return;
-
-      if (bubbleText) bubbleText.textContent = charState.moodText;
-      if (bubbleEmoji) bubbleEmoji.textContent = charState.moodEmoji;
-
-      const c = charState.color;
-      const b = charState.base;
-      const acc = charState.accessories;
-
-      let ears = '';
-      if (b === 'cat') {
-        ears = `
-          <polygon points="30,44 21,14 48,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
-          <polygon points="90,44 99,14 72,30" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>
-          <polygon points="32,40 27,21 44,31" fill="#fda4af"/>
-          <polygon points="88,40 93,21 76,31" fill="#fda4af"/>
-        `;
-      } else if (b === 'bear') {
-        ears = `
-          <circle cx="31" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
-          <circle cx="89" cy="30" r="12" fill="${c}" stroke="#292524" stroke-width="3"/>
-          <circle cx="31" cy="30" r="5.5" fill="#fda4af"/>
-          <circle cx="89" cy="30" r="5.5" fill="#fda4af"/>
-        `;
+    function seedParticles(width, height) {
+      particles = [];
+      if (ambientMode === 'rain') {
+        for (let i = 0; i < 85; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: -1.2,
+            vy: 6 + Math.random() * 4,
+            len: 12 + Math.random() * 10
+          });
+        }
+      } else if (ambientMode === 'fireflies') {
+        for (let i = 0; i < 32; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.45,
+            vy: (Math.random() - 0.5) * 0.45,
+            r: 1.8 + Math.random() * 2.2,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
       }
-
-      const body = b === 'ghost'
-        ? `<path d="M28,64 C28,28 92,28 92,64 L92,106 L78,96 L60,108 L42,96 L28,106 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>`
-        : `<rect x="28" y="28" width="64" height="68" rx="31" fill="${b === 'reader' ? '#ffedd5' : c}" stroke="#292524" stroke-width="3"/>
-           <path d="M33,90 Q60,78 87,90 L91,110 L29,110 Z" fill="${c}" stroke="#292524" stroke-width="3" stroke-linejoin="round"/>`;
-
-      let eyes = '';
-      if (charState.moodText === 'Durmiendo') {
-        eyes = `
-          <path d="M42,56 Q48,62 54,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
-          <path d="M66,56 Q72,62 78,56" fill="none" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
-        `;
-      } else {
-        eyes = `
-          <circle cx="48" cy="55" r="4" fill="#292524"/>
-          <circle cx="72" cy="55" r="4" fill="#292524"/>
-          <circle cx="49.5" cy="53.5" r="1.4" fill="#ffffff"/>
-          <circle cx="73.5" cy="53.5" r="1.4" fill="#ffffff"/>
-        `;
-      }
-
-      const glassesSvg = acc.glasses ? `
-        <circle cx="48" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
-        <circle cx="72" cy="55" r="9.5" fill="rgba(255,255,255,0.22)" stroke="#78350f" stroke-width="2.5"/>
-        <line x1="57.5" y1="55" x2="62.5" y2="55" stroke="#78350f" stroke-width="2.5"/>
-      ` : '';
-
-      const headphonesSvg = acc.headphones ? `
-        <path d="M23,54 C23,18 97,18 97,54" fill="none" stroke="#44403c" stroke-width="5.5" stroke-linecap="round"/>
-        <rect x="17" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
-        <rect x="92" y="45" width="11" height="20" rx="5.5" fill="#fb7185" stroke="#292524" stroke-width="2.5"/>
-      ` : '';
-
-      const flowersSvg = acc.flowers ? `
-        <circle cx="40" cy="28" r="5.5" fill="#fda4af" stroke="#292524" stroke-width="2"/>
-        <circle cx="40" cy="28" r="2" fill="#fde047"/>
-        <circle cx="60" cy="25" r="6" fill="#ffffff" stroke="#292524" stroke-width="2"/>
-        <circle cx="60" cy="25" r="2" fill="#fb923c"/>
-        <circle cx="80" cy="28" r="5.5" fill="#c4b5fd" stroke="#292524" stroke-width="2"/>
-        <circle cx="80" cy="28" r="2" fill="#fde047"/>
-      ` : '';
-
-      const beretSvg = acc.beret ? `
-        <ellipse cx="62" cy="25" rx="27" ry="10.5" transform="rotate(-10 62 25)" fill="#d97757" stroke="#292524" stroke-width="2.8"/>
-        <line x1="65" y1="15" x2="68" y2="10" stroke="#292524" stroke-width="2.8" stroke-linecap="round"/>
-      ` : '';
-
-      const santaSvg = acc.santa ? `
-        <path d="M32,33 C42,6 76,6 96,26 C88,28 84,33 84,33 Z" fill="#ef4444" stroke="#292524" stroke-width="2.8" stroke-linejoin="round"/>
-        <rect x="29" y="28" width="60" height="10" rx="5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
-        <circle cx="97" cy="27" r="6.5" fill="#ffffff" stroke="#292524" stroke-width="2.5"/>
-      ` : '';
-
-      let propSvg = '';
-      if (charState.prop === 'book') {
-        propSvg = `
-          <path d="M36,80 L60,85 L84,80 L84,103 L60,108 L36,103 Z" fill="#fef3c7" stroke="#292524" stroke-width="2.5" stroke-linejoin="round"/>
-          <line x1="60" y1="85" x2="60" y2="108" stroke="#292524" stroke-width="2"/>
-        `;
-      } else if (charState.prop === 'coffee') {
-        propSvg = `
-          <rect x="47" y="81" width="26" height="21" rx="6" fill="#fffbeb" stroke="#292524" stroke-width="2.5"/>
-          <path d="M73,85 Q81,85 81,91 Q81,97 73,97" fill="none" stroke="#292524" stroke-width="2.5"/>
-          <path d="M55,75 Q53,70 56,66" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
-          <path d="M64,75 Q62,70 65,66" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
-        `;
-      }
-
-      container.innerHTML = `
-        <svg viewBox="0 0 120 118" class="w-full h-full overflow-visible">
-          ${ears}
-          ${body}
-          <ellipse cx="40" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.6"/>
-          <ellipse cx="80" cy="63" rx="5.5" ry="3.2" fill="#fb7185" opacity="0.6"/>
-          ${eyes}
-          ${glassesSvg}
-          <path d="M56,64 Q60,68 64,64" fill="none" stroke="#292524" stroke-width="2.5" stroke-linecap="round"/>
-          ${flowersSvg}
-          ${beretSvg}
-          ${santaSvg}
-          ${headphonesSvg}
-          ${propSvg}
-        </svg>
-      `;
     }
 
-    function setCharColor(hex) {
-      charState.color = hex;
-      renderCharacter();
+    function initAmbientCanvas() {
+      const canvas = document.getElementById('ambient-canvas');
+      if (!canvas) return;
+      const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        seedParticles(canvas.width, canvas.height);
+      };
+      resize();
+      window.addEventListener('resize', resize);
+      requestAnimationFrame(loopAmbientCanvas);
     }
 
-    function setCharBase(base) {
-      charState.base = base;
-      document.querySelectorAll('.char-base-btn').forEach((btn) => {
-        const active = btn.getAttribute('onclick').includes(`'${base}'`);
-        btn.className = active
-          ? 'char-base-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
-          : 'char-base-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+    function applyPresetBg(themeKey, broadcast = false) {
+      const body = document.getElementById('app-body');
+      const customImg = document.getElementById('custom-bg-image');
+      const dimmer = document.getElementById('custom-bg-dimmer');
+
+      if (customImg) customImg.classList.add('opacity-0');
+      if (dimmer) dimmer.style.opacity = '0';
+
+      if (body) {
+        body.classList.remove(
+          'bg-theme-night', 'bg-theme-white', 'bg-theme-notebook',
+          'bg-theme-lofi', 'bg-theme-forest', 'bg-theme-coffee'
+        );
+        body.classList.add(`bg-theme-${themeKey}`);
+      }
+      syncThemeAppearance(themeKey === 'white' || themeKey === 'notebook');
+
+      if (broadcast && db) {
+        const ref = roomRef('theme');
+        if (ref) ref.set({ preset: themeKey, updatedAt: Date.now() }).catch(() => {});
+      }
+    }
+
+    function setCustomBackgroundImage(src) {
+      const customImg = document.getElementById('custom-bg-image');
+      const dimmer = document.getElementById('custom-bg-dimmer');
+      const slider = document.getElementById('bg-dimmer-slider');
+      const sliderVal = slider ? Number(slider.value) : 20;
+
+      if (customImg) {
+        customImg.style.backgroundImage = `url("${src}")`;
+        customImg.classList.remove('opacity-0');
+      }
+      if (dimmer) {
+        dimmer.style.opacity = String(sliderVal / 100);
+      }
+      syncThemeAppearance(false);
+    }
+
+    function applyCustomBgUrl() {
+      const input = document.getElementById('custom-bg-url-input');
+      const url = input ? input.value.trim() : '';
+      if (!url) {
+        showToast('⚠️ Pega el enlace de una imagen o GIF');
+        return;
+      }
+      setCustomBackgroundImage(url);
+      showToast('🖼️ Fondo personalizado aplicado');
+    }
+
+    function handleLocalBgUpload(event) {
+      const file = event.target && event.target.files ? event.target.files[0] : null;
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target && e.target.result) {
+          setCustomBackgroundImage(e.target.result);
+          showToast('📸 Imagen cargada como fondo');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateBgDimmer(val) {
+      const customImg = document.getElementById('custom-bg-image');
+      const dimmer = document.getElementById('custom-bg-dimmer');
+      if (customImg && dimmer && !customImg.classList.contains('opacity-0')) {
+        dimmer.style.opacity = String(Number(val) / 100);
+      }
+    }
+
+    function setAmbientEffect(mode) {
+      ambientMode = mode;
+      const canvas = document.getElementById('ambient-canvas');
+      if (canvas) seedParticles(canvas.width, canvas.height);
+
+      ['none', 'rain', 'fireflies'].forEach((m) => {
+        const btn = document.getElementById(`fx-${m}-btn`);
+        if (!btn) return;
+        btn.className = m === mode
+          ? 'px-2.5 py-1 rounded-xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
+          : 'px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 font-semibold cursor-pointer';
       });
-      renderCharacter();
     }
 
-    function setCharMood(text, emoji) {
-      charState.moodText = text;
-      charState.moodEmoji = emoji;
-      document.querySelectorAll('.char-mood-btn').forEach((btn) => {
-        const active = btn.getAttribute('onclick').includes(`'${text}'`);
-        btn.className = active
-          ? 'char-mood-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
-          : 'char-mood-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
-      });
-      renderCharacter();
-    }
-
-    function toggleAccessory(key) {
-      if (!(key in charState.accessories)) return;
-      charState.accessories[key] = !charState.accessories[key];
-      const btn = document.getElementById(`acc-${key}-btn`);
-      if (btn) {
-        const on = charState.accessories[key];
-        btn.className = on
-          ? 'py-1.5 px-2.5 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
-          : 'py-1.5 px-2.5 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
+    function loopAmbientCanvas() {
+      const canvas = document.getElementById('ambient-canvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (ambientMode === 'rain') {
+            ctx.strokeStyle = 'rgba(219, 234, 254, 0.35)';
+            ctx.lineWidth = 1.2;
+            ctx.lineCap = 'round';
+            for (const p of particles) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p.x + p.vx * 2, p.y + p.len);
+              ctx.stroke();
+              p.x += p.vx;
+              p.y += p.vy;
+              if (p.y > canvas.height) {
+                p.y = -20;
+                p.x = Math.random() * canvas.width;
+              }
+            }
+          } else if (ambientMode === 'fireflies') {
+            for (const f of particles) {
+              f.phase += 0.03;
+              const alpha = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(f.phase));
+              ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(2)})`;
+              ctx.beginPath();
+              ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+              ctx.fill();
+              f.x += f.vx;
+              f.y += f.vy;
+              if (f.x < 0) f.x = canvas.width;
+              if (f.x > canvas.width) f.x = 0;
+              if (f.y < 0) f.y = canvas.height;
+              if (f.y > canvas.height) f.y = 0;
+            }
+          }
+        }
       }
-      renderCharacter();
-    }
-
-    function setCharProp(prop) {
-      charState.prop = prop;
-      document.querySelectorAll('.char-prop-btn').forEach((btn) => {
-        const active = btn.getAttribute('onclick').includes(`'${prop}'`);
-        btn.className = active
-          ? 'char-prop-btn py-1.5 px-2 rounded-2xl bg-amber-300 text-stone-900 font-bold cursor-pointer'
-          : 'char-prop-btn py-1.5 px-2 rounded-2xl bg-white/10 hover:bg-white/15 font-semibold cursor-pointer';
-      });
-      renderCharacter();
+      requestAnimationFrame(loopAmbientCanvas);
     }
 
     // ---------------------------------------------------------
-    // 8. DECORACIÓN ("COSITAS") Y ARRASTRE SEGURO (RATÓN + TÁCTIL)
+    // 9. ARRASTRE UNIFICADO (RATÓN Y PANTALLA TÁCTIL CON THROTTLE)
     // ---------------------------------------------------------
-    function spawnSticker(emoji, label, customX = null, customY = null) {
-      try {
-        const layer = document.getElementById('stickers-layer');
-        if (!layer) return;
-
-        highestZ += 1;
-        const item = document.createElement('div');
-        const startX = customX !== null ? customX : Math.max(40, Math.min(window.innerWidth - 110, window.innerWidth * 0.48 + (Math.random() * 120 - 60)));
-        const startY = customY !== null ? customY : Math.max(80, Math.min(window.innerHeight - 160, window.innerHeight * 0.54 + (Math.random() * 100 - 50)));
-
-        item.style.left = `${startX}px`;
-        item.style.top = `${startY}px`;
-        item.style.zIndex = String(highestZ);
-        item.className = 'draggable-entity pointer-events-auto absolute group flex flex-col items-center p-2 rounded-2xl hover:bg-white/5';
-        item.title = `${label} · Arrastra o haz doble clic para quitar`;
-
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'opacity-0 group-hover:opacity-100 absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center shadow transition-opacity cursor-pointer';
-        delBtn.textContent = '✕';
-        delBtn.title = 'Eliminar';
-        delBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          item.remove();
-        });
-
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'text-5xl sm:text-6xl drop-shadow-lg select-none';
-        iconSpan.textContent = emoji;
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity';
-        nameSpan.textContent = label;
-
-        item.appendChild(delBtn);
-        item.appendChild(iconSpan);
-        item.appendChild(nameSpan);
-        item.addEventListener('dblclick', () => item.remove());
-        item.addEventListener('mousedown', () => bringToFront(item));
-        item.addEventListener('touchstart', () => bringToFront(item), { passive: true });
-
-        layer.appendChild(item);
-        enableDrag(item, item);
-      } catch (err) {
-        console.error('Error al añadir objeto decorativo:', err);
-      }
-    }
-
-    function enableDrag(handleEl, targetEl) {
+    function enableDrag(handleEl, targetEl, callbacks = {}) {
       if (!handleEl || !targetEl) return;
 
       let active = false;
@@ -2080,10 +2648,11 @@
       let startY = 0;
       let origLeft = 0;
       let origTop = 0;
+      let lastSyncTime = 0;
 
-      const clampPosition = (left, top) => {
+      const clampPos = (left, top) => {
         const rect = targetEl.getBoundingClientRect();
-        const w = rect.width || 120;
+        const w = rect.width || 110;
         const h = rect.height || 80;
         const maxLeft = Math.max(8, window.innerWidth - w - 8);
         const maxTop = Math.max(64, window.innerHeight - h - 72);
@@ -2093,10 +2662,10 @@
         };
       };
 
-      const onPointerDown = (e) => {
+      const onStart = (e) => {
         if (e.target && e.target.closest('button, input, textarea, select, a, iframe')) return;
-        const point = e.touches && e.touches[0] ? e.touches[0] : e;
-        if (!point) return;
+        const pt = e.touches && e.touches[0] ? e.touches[0] : e;
+        if (!pt) return;
 
         active = true;
         bringToFront(targetEl);
@@ -2109,71 +2678,207 @@
 
         origLeft = rect.left;
         origTop = rect.top;
-        startX = point.clientX;
-        startY = point.clientY;
+        startX = pt.clientX;
+        startY = pt.clientY;
+        if (typeof callbacks.onDragStart === 'function') callbacks.onDragStart();
       };
 
-      const onPointerMove = (e) => {
+      const onMove = (e) => {
         if (!active) return;
-        const point = e.touches && e.touches[0] ? e.touches[0] : e;
-        if (!point) return;
+        const pt = e.touches && e.touches[0] ? e.touches[0] : e;
+        if (!pt) return;
 
         if (e.cancelable) e.preventDefault();
-        const dx = point.clientX - startX;
-        const dy = point.clientY - startY;
-        const clamped = clampPosition(origLeft + dx, origTop + dy);
-        targetEl.style.left = `${clamped.left}px`;
-        targetEl.style.top = `${clamped.top}px`;
+        const pos = clampPos(origLeft + (pt.clientX - startX), origTop + (pt.clientY - startY));
+        targetEl.style.left = `${pos.left}px`;
+        targetEl.style.top = `${pos.top}px`;
+
+        const now = Date.now();
+        if (typeof callbacks.onDragMove === 'function' && now - lastSyncTime >= 90) {
+          lastSyncTime = now;
+          callbacks.onDragMove(pos.left, pos.top);
+        }
       };
 
-      const onPointerUp = () => {
+      const onEnd = () => {
+        if (!active) return;
         active = false;
+        const rect = targetEl.getBoundingClientRect();
+        if (typeof callbacks.onDragEnd === 'function') {
+          callbacks.onDragEnd(rect.left, rect.top);
+        }
       };
 
-      handleEl.addEventListener('mousedown', onPointerDown);
-      window.addEventListener('mousemove', onPointerMove);
-      window.addEventListener('mouseup', onPointerUp);
+      handleEl.addEventListener('mousedown', onStart);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
 
-      handleEl.addEventListener('touchstart', onPointerDown, { passive: true });
-      window.addEventListener('touchmove', onPointerMove, { passive: false });
-      window.addEventListener('touchend', onPointerUp);
+      handleEl.addEventListener('touchstart', onStart, { passive: true });
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
     }
 
-    function keepElementsInViewport() {
-      document.querySelectorAll('.draggable-window, .draggable-entity').forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const w = rect.width || 100;
-        const h = rect.height || 80;
-        const maxLeft = Math.max(8, window.innerWidth - w - 8);
-        const maxTop = Math.max(64, window.innerHeight - h - 72);
-        if (rect.left > maxLeft) el.style.left = `${maxLeft}px`;
-        if (rect.top > maxTop) el.style.top = `${maxTop}px`;
-        if (rect.top < 64) el.style.top = '64px';
+    // ---------------------------------------------------------
+    // 10. CONEXIÓN EN TIEMPO REAL CON FIREBASE
+    // ---------------------------------------------------------
+    function detachRoomListeners() {
+      roomListeners.forEach(({ ref, eventType, handler }) => {
+        try {
+          ref.off(eventType, handler);
+        } catch (e) {}
       });
+      roomListeners = [];
     }
 
+    function connectToRoom(roomId) {
+      detachRoomListeners();
+      const layer = document.getElementById('stickers-layer');
+      if (layer) layer.innerHTML = '';
+
+      if (!db) {
+        updateConnectionBadge(false);
+        return;
+      }
+
+      // Asegurar que nuestro avatar local exista en la sala
+      let myAvatar = participants.find((p) => p.id === myUserId);
+      if (!myAvatar) {
+        myAvatar = {
+          id: myUserId,
+          name: 'Tú',
+          isLocal: true,
+          badge: '🧸',
+          x: 42,
+          y: 38,
+          shape: 'reader',
+          face: 'sweet',
+          color: '#fde68a',
+          accessories: { santa: true, glasses: true, book: true },
+          mood: 'Leyendo',
+          moodEmoji: '📖'
+        };
+        participants = [myAvatar];
+      }
+      syncAvatarToFirebase(myAvatar);
+
+      // 1. Escuchar avatares de la sala
+      const avatarsRef = roomRef('avatars');
+      const onAvatarsValue = (snapshot) => {
+        const val = snapshot.val() || {};
+        const remoteList = Object.values(val);
+        if (remoteList.length === 0) return;
+
+        participants = remoteList.map((item) => {
+          const existing = participants.find((p) => p.id === item.id);
+          if (existing && draggingAvatarId === item.id) {
+            return existing;
+          }
+          return {
+            ...item,
+            isLocal: item.id === myUserId,
+            accessories: item.accessories || {}
+          };
+        });
+
+        if (!participants.some((p) => p.id === activeAvatarId)) {
+          activeAvatarId = myUserId;
+        }
+        renderAllRoomAvatars();
+        renderWardrobeUI();
+      };
+      avatarsRef.on('value', onAvatarsValue);
+      roomListeners.push({ ref: avatarsRef, eventType: 'value', handler: onAvatarsValue });
+
+      // 2. Escuchar decoración compartida
+      const decorRef = roomRef('decor');
+      const onDecorValue = (snapshot) => {
+        const val = snapshot.val() || {};
+        const validIds = new Set(Object.keys(val));
+
+        // Eliminar elementos borrados por otro usuario
+        document.querySelectorAll('[id^="decor-item-"]').forEach((node) => {
+          const id = node.id.replace('decor-item-', '');
+          if (!validIds.has(id)) node.remove();
+        });
+
+        Object.values(val).forEach((item) => {
+          renderOrUpdateDecorElement(item);
+        });
+      };
+      decorRef.on('value', onDecorValue);
+      roomListeners.push({ ref: decorRef, eventType: 'value', handler: onDecorValue });
+
+      // 3. Escuchar mensajes del chat (últimos 50)
+      const chatRef = roomRef('chat').limitToLast(50);
+      const onChatValue = (snapshot) => {
+        const val = snapshot.val() || {};
+        const msgs = Object.values(val).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        renderChatList(msgs);
+      };
+      chatRef.on('value', onChatValue);
+      roomListeners.push({ ref: chatRef, eventType: 'value', handler: onChatValue });
+
+      // 4. Escuchar vídeo sincronizado de YouTube
+      const videoRef = roomRef('video');
+      const onVideoValue = (snapshot) => {
+        const val = snapshot.val();
+        if (val) applyYoutubeState(val);
+      };
+      videoRef.on('value', onVideoValue);
+      roomListeners.push({ ref: videoRef, eventType: 'value', handler: onVideoValue });
+
+      // 5. Escuchar tema de fondo compartido
+      const themeRef = roomRef('theme');
+      const onThemeValue = (snapshot) => {
+        const val = snapshot.val();
+        if (val && val.preset) {
+          applyPresetBg(val.preset, false);
+        }
+      };
+      themeRef.on('value', onThemeValue);
+      roomListeners.push({ ref: themeRef, eventType: 'value', handler: onThemeValue });
+    }
+
+    // ---------------------------------------------------------
+    // INICIALIZACIÓN
+    // ---------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
       try {
+        const roomInput = document.getElementById('room-name-input');
+        if (roomInput) roomInput.value = currentRoomId;
+
         document.querySelectorAll('.draggable-window').forEach((win) => {
           const handle = win.querySelector('.drag-handle');
           enableDrag(handle || win, win);
         });
 
-        const charEl = document.getElementById('cozy-character');
-        if (charEl) enableDrag(charEl, charEl);
-
-        renderCharacter();
-        updateClockDisplay();
-        updateAccumulatedUI();
+        renderYoutubeSuggestions(YOUTUBE_TRACKS);
+        renderAllRoomAvatars();
+        renderWardrobeUI();
+        renderDecorCatalog();
         initAmbientCanvas();
 
-        spawnSticker('🪔', 'Lámpara', Math.max(120, window.innerWidth * 0.36), Math.max(120, window.innerHeight * 0.25));
-        spawnSticker('🪴', 'Planta', Math.max(120, window.innerWidth * 0.38), Math.max(160, window.innerHeight * 0.56));
-        spawnSticker('🕯️', 'Vela', Math.max(120, window.innerWidth * 0.58), Math.max(160, window.innerHeight * 0.54));
+        // Inicializar Firebase
+        if (window.firebase && typeof firebase.initializeApp === 'function') {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+          }
+          db = firebase.database();
 
-        window.addEventListener('resize', keepElementsInViewport);
+          db.ref('.info/connected').on('value', (snap) => {
+            updateConnectionBadge(Boolean(snap.val()));
+          });
+
+          connectToRoom(currentRoomId);
+        } else {
+          updateConnectionBadge(false);
+          renderOrUpdateDecorElement({ id: 'decor_init_1', type: 'painting', x: 43, y: 14 });
+          renderOrUpdateDecorElement({ id: 'decor_init_2', type: 'easel', x: 36, y: 56 });
+          renderOrUpdateDecorElement({ id: 'decor_init_3', type: 'sylvanian-bunny', x: 57, y: 58 });
+        }
       } catch (err) {
-        console.error('Error al inicializar Mi Rincón Cozy:', err);
+        console.error('Error al iniciar Mi Rincón Cozy:', err);
+        updateConnectionBadge(false);
       }
     });
   </script>
