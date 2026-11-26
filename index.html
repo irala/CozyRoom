@@ -165,11 +165,11 @@
       transform: scale(1.04);
     }
 
-    /* En móvil, las ventanas ocupan el ancho disponible y se apilan mediante JS. */
+    /* En móvil, la habitación es la vista principal y los widgets se abren como paneles. */
     @media (max-width: 700px) {
       #room-canvas {
         overflow-x: hidden;
-        overflow-y: auto;
+        overflow-y: hidden;
       }
 
       #top-bar {
@@ -184,6 +184,10 @@
 
       .draggable-window {
         max-width: calc(100vw - 16px);
+      }
+
+      #room-canvas.mobile-widget-open .draggable-window {
+        border-radius: 1.5rem;
       }
     }
   </style>
@@ -258,11 +262,23 @@
         type="button"
         onclick="toggleAmbientAudio()"
         class="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl text-xs font-semibold border border-current/15 bg-white/5 hover:bg-white/15 transition-all cursor-pointer"
-        title="Sonido ambiental relajante (Lluvia / Chimenea)"
+        title="Activar o pausar el ambiente elegido"
       >
         <i id="ambient-audio-icon" class="ph-fill ph-speaker-slash text-amber-300 text-sm"></i>
         <span id="ambient-audio-label" class="hidden lg:inline">Sonido</span>
       </button>
+
+      <select
+        id="ambient-sound-select"
+        onchange="setAmbientSound(this.value)"
+        aria-label="Elegir sonido ambiental"
+        class="max-w-[92px] sm:max-w-[118px] px-2 py-1.5 rounded-2xl text-[11px] font-semibold bg-white/5 border border-current/15 focus:border-amber-300 focus:outline-none cursor-pointer"
+      >
+        <option value="rain">🌧️ Lluvia</option>
+        <option value="river">🌊 Río</option>
+        <option value="birds">🐦 Pájaros</option>
+        <option value="asmr">✨ ASMR</option>
+      </select>
 
       <button
         id="quick-theme-btn"
@@ -774,6 +790,15 @@
     </div>
     <p class="text-[11px] opacity-75 mb-3">Pulsa cualquier objeto para ponerlo en tu habitación. Arrástralo libremente o pulsa ✕ / doble clic para quitarlo.</p>
 
+    <div class="mb-3 p-3 rounded-2xl border border-dashed border-amber-300/35 bg-amber-300/[0.05]">
+      <input id="decor-photo-input" type="file" accept="image/*" class="hidden" onchange="handleDecorPhotoUpload(event)" />
+      <label for="decor-photo-input" class="flex items-center justify-center gap-2 px-3 py-2 rounded-2xl bg-amber-300 text-stone-900 text-xs font-bold cursor-pointer hover:brightness-105 transition-all">
+        <i class="ph-bold ph-image text-base"></i>
+        <span>Subir una foto como objeto</span>
+      </label>
+      <p class="mt-1.5 text-[10px] text-center opacity-65">Se comprime para que cargue bien en móvil y se comparte con la sala.</p>
+    </div>
+
     <div id="decor-catalog-grid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
   </div>
 
@@ -1246,6 +1271,20 @@
       const dockBtn = document.getElementById(`dock-${name}`);
       if (!widget) return;
 
+      if (window.innerWidth <= 700) {
+        const opening = mobileOpenWidget !== name;
+        mobileOpenWidget = opening ? name : null;
+        document.querySelectorAll('.draggable-window').forEach((item) => {
+          item.classList.toggle('hidden', !opening || item.id !== `widget-${name}`);
+        });
+        document.querySelectorAll('[id^="dock-"]').forEach((button) => {
+          const buttonName = button.id.replace('dock-', '');
+          button.classList.toggle('opacity-45', opening && buttonName !== name);
+        });
+        requestAnimationFrame(applyResponsiveLayout);
+        return;
+      }
+
       const isHidden = widget.classList.contains('hidden');
       widget.classList.toggle('hidden', !isHidden);
       if (isHidden) bringToFront(widget);
@@ -1254,7 +1293,9 @@
     }
 
     const desktopWidgetStyles = new Map();
+    const desktopWidgetVisibility = new Map();
     let mobileLayoutActive = false;
+    let mobileOpenWidget = null;
 
     function applyResponsiveLayout() {
       const canvas = document.getElementById('room-canvas');
@@ -1268,9 +1309,12 @@
           widgets.forEach((widget) => {
             const originalStyle = desktopWidgetStyles.get(widget.id);
             if (originalStyle !== undefined) widget.setAttribute('style', originalStyle);
+            widget.classList.toggle('hidden', desktopWidgetVisibility.get(widget.id) === true);
           });
           canvas.style.minHeight = '';
+          canvas.classList.remove('mobile-widget-open');
           mobileLayoutActive = false;
+          mobileOpenWidget = null;
         }
         return;
       }
@@ -1278,26 +1322,33 @@
       if (!mobileLayoutActive) {
         widgets.forEach((widget) => {
           desktopWidgetStyles.set(widget.id, widget.getAttribute('style') || '');
+          desktopWidgetVisibility.set(widget.id, widget.classList.contains('hidden'));
+          widget.classList.add('hidden');
         });
         mobileLayoutActive = true;
       }
 
-      let nextTop = Math.max(100, Math.ceil((topBar ? topBar.getBoundingClientRect().bottom : 88) + 12));
       const mobileWidth = Math.max(280, window.innerWidth - 16);
-
+      canvas.classList.toggle('mobile-widget-open', Boolean(mobileOpenWidget));
       widgets.forEach((widget) => {
-        if (widget.classList.contains('hidden')) return;
+        if (!mobileOpenWidget || widget.id !== `widget-${mobileOpenWidget}`) {
+          widget.classList.add('hidden');
+          return;
+        }
 
+        const panelTop = Math.max(108, Math.ceil((topBar ? topBar.getBoundingClientRect().bottom : 88) + 10));
         widget.style.width = `${mobileWidth}px`;
         widget.style.maxWidth = `${mobileWidth}px`;
         widget.style.left = '8px';
         widget.style.right = 'auto';
-        widget.style.top = `${nextTop}px`;
+        widget.style.top = `${panelTop}px`;
         widget.style.bottom = 'auto';
-        nextTop += widget.getBoundingClientRect().height + 12;
+        widget.style.position = 'fixed';
+        widget.style.maxHeight = `calc(100vh - ${panelTop + 96}px)`;
+        widget.style.overflowY = 'auto';
       });
 
-      canvas.style.minHeight = `${Math.max(window.innerHeight, nextTop + 88)}px`;
+      canvas.style.minHeight = '';
     }
 
     // ---------------------------------------------------------
@@ -1982,6 +2033,73 @@
       });
     }
 
+    function compressDecorImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const image = new Image();
+          image.onload = () => {
+            const maxSize = 480;
+            const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d');
+            if (!context) {
+              reject(new Error('No se pudo preparar la imagen'));
+              return;
+            }
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/webp', 0.78));
+          };
+          image.onerror = () => reject(new Error('La imagen no es válida'));
+          image.src = String(reader.result);
+        };
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleDecorPhotoUpload(event) {
+      const input = event.target;
+      const file = input && input.files ? input.files[0] : null;
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('Elige un archivo de imagen');
+        input.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('La imagen debe ocupar menos de 8 MB');
+        input.value = '';
+        return;
+      }
+
+      try {
+        const imageData = await compressDecorImage(file);
+        const decorId = 'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const label = file.name.replace(/\.[^/.]+$/, '').trim().slice(0, 24) || 'Foto';
+        const payload = {
+          id: decorId,
+          type: 'photo',
+          label,
+          image: imageData,
+          ownerId: myUserId,
+          x: Number((42 + (Math.random() * 16 - 8)).toFixed(2)),
+          y: Number((48 + (Math.random() * 16 - 8)).toFixed(2))
+        };
+        renderOrUpdateDecorElement(payload);
+        syncDecorToFirebase(payload);
+        showToast(`📷 ${label} añadido a la sala`);
+        togglePanel('panel-decor');
+      } catch (error) {
+        showToast('No se pudo cargar esa imagen');
+      } finally {
+        input.value = '';
+      }
+    }
+
     let draggingDecorId = null;
 
     function syncDecorToFirebase(decorData) {
@@ -1998,8 +2116,10 @@
 
     function renderOrUpdateDecorElement(decorData) {
       const meta = DECOR_CATALOG.find((d) => d.id === decorData.type);
+      const isPhoto = decorData.type === 'photo' && typeof decorData.image === 'string' && decorData.image.startsWith('data:image/');
       const layer = document.getElementById('stickers-layer');
-      if (!meta || !layer) return;
+      if ((!meta && !isPhoto) || !layer) return;
+      const decorLabel = isPhoto ? (decorData.label || 'Foto') : meta.label;
 
       let el = document.getElementById(`decor-item-${decorData.id}`);
       const leftPx = Math.max(24, Math.min(window.innerWidth - 110, Math.round((window.innerWidth * (Number(decorData.x) || 45)) / 100)));
@@ -2020,7 +2140,7 @@
       el.style.top = `${topPx}px`;
       el.style.zIndex = String(highestZ);
       el.className = 'draggable-entity pointer-events-auto absolute group flex flex-col items-center p-1.5 rounded-2xl hover:bg-white/5';
-      el.title = `${meta.label} · Arrastra o pulsa ✕ para quitar`;
+      el.title = `${decorLabel} · Arrastra o pulsa ✕ para quitar`;
 
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
@@ -2035,11 +2155,19 @@
 
       const artWrap = document.createElement('div');
       artWrap.className = 'drop-shadow-xl pointer-events-none';
-      artWrap.innerHTML = meta.svg;
+      if (isPhoto) {
+        const image = document.createElement('img');
+        image.src = decorData.image;
+        image.alt = decorLabel;
+        image.className = 'w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-2xl border-2 border-amber-200/45 shadow-xl';
+        artWrap.appendChild(image);
+      } else {
+        artWrap.innerHTML = meta.svg;
+      }
 
       const labelTag = document.createElement('span');
       labelTag.className = 'mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity';
-      labelTag.textContent = meta.label;
+      labelTag.textContent = decorLabel;
 
       el.appendChild(removeBtn);
       el.appendChild(artWrap);
@@ -2374,28 +2502,94 @@
     // ---------------------------------------------------------
     let audioCtx = null;
     let ambientSoundNode = null;
+    let ambientFilterNode = null;
     let ambientGainNode = null;
     let ambientSoundActive = false;
+    let ambientSoundMode = 'rain';
 
-    function toggleAmbientAudio() {
-      const btnIcon = document.getElementById('ambient-audio-icon');
-      const btnLabel = document.getElementById('ambient-audio-label');
+    const AMBIENT_SOUND_NAMES = {
+      rain: 'Lluvia',
+      river: 'Río',
+      birds: 'Pájaros',
+      asmr: 'ASMR'
+    };
 
-      if (ambientSoundActive) {
-        if (ambientSoundNode) {
-          try {
-            ambientSoundNode.stop();
-            ambientSoundNode.disconnect();
-          } catch (e) {}
-          ambientSoundNode = null;
+    function stopAmbientAudio() {
+      if (ambientSoundNode) {
+        try {
+          ambientSoundNode.stop();
+          ambientSoundNode.disconnect();
+        } catch (e) {}
+        ambientSoundNode = null;
+      }
+      if (ambientFilterNode) {
+        try { ambientFilterNode.disconnect(); } catch (e) {}
+        ambientFilterNode = null;
+      }
+      if (ambientGainNode) {
+        try { ambientGainNode.disconnect(); } catch (e) {}
+        ambientGainNode = null;
+      }
+      ambientSoundActive = false;
+    }
+
+    function createAmbientBuffer(mode) {
+      const duration = mode === 'birds' ? 8 : 3;
+      const bufferSize = audioCtx.sampleRate * duration;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = buffer.getChannelData(0);
+
+      if (mode === 'birds') {
+        // Silencio con pequeños trinos sintéticos y suaves, sin voces ni archivos externos.
+        for (let chirp = 0; chirp < 7; chirp++) {
+          const start = Math.floor((0.35 + Math.random() * 7.2) * audioCtx.sampleRate);
+          const length = Math.floor((0.18 + Math.random() * 0.18) * audioCtx.sampleRate);
+          const baseFrequency = 1500 + Math.random() * 1700;
+          for (let i = 0; i < length && start + i < output.length; i++) {
+            const progress = i / length;
+            const envelope = Math.sin(Math.PI * progress) * 0.16;
+            const frequency = baseFrequency + Math.sin(progress * Math.PI * 2) * 500;
+            output[start + i] += Math.sin((Math.PI * 2 * frequency * i) / audioCtx.sampleRate) * envelope;
+          }
         }
-        ambientSoundActive = false;
-        if (btnIcon) btnIcon.className = 'ph-fill ph-speaker-slash text-amber-300 text-sm';
-        if (btnLabel) btnLabel.textContent = 'Sonido';
-        showToast('🔇 Sonido ambiental pausado');
-        return;
+        return buffer;
       }
 
+      let b0 = 0;
+      let b1 = 0;
+      let b2 = 0;
+      let b3 = 0;
+      let b4 = 0;
+      let b5 = 0;
+      let b6 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+        b6 = white * 0.115926;
+        output[i] = pink * (mode === 'asmr' ? 0.025 : 0.04);
+      }
+      return buffer;
+    }
+
+    function setAmbientSound(mode) {
+      if (!AMBIENT_SOUND_NAMES[mode]) return;
+      ambientSoundMode = mode;
+      if (ambientSoundActive) {
+        stopAmbientAudio();
+        startAmbientAudio();
+      } else {
+        const label = document.getElementById('ambient-audio-label');
+        if (label) label.textContent = AMBIENT_SOUND_NAMES[mode];
+      }
+    }
+
+    function startAmbientAudio() {
       try {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) {
@@ -2405,33 +2599,30 @@
         if (!audioCtx) audioCtx = new AudioContextClass();
         if (audioCtx.state === 'suspended') audioCtx.resume();
 
-        // Generar ruido rosa suave estilo lluvia tranquila sobre ventana
-        const bufferSize = audioCtx.sampleRate * 3;
-        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
-          b6 = white * 0.115926;
-        }
-
         const source = audioCtx.createBufferSource();
-        source.buffer = noiseBuffer;
+        source.buffer = createAmbientBuffer(ambientSoundMode);
         source.loop = true;
 
         const filter = audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 620;
-
         const gain = audioCtx.createGain();
-        gain.gain.value = 0.45;
+        if (ambientSoundMode === 'river') {
+          filter.type = 'lowpass';
+          filter.frequency.value = 1250;
+          gain.gain.value = 0.5;
+        } else if (ambientSoundMode === 'asmr') {
+          filter.type = 'bandpass';
+          filter.frequency.value = 3600;
+          filter.Q.value = 0.7;
+          gain.gain.value = 0.28;
+        } else if (ambientSoundMode === 'birds') {
+          filter.type = 'lowpass';
+          filter.frequency.value = 5200;
+          gain.gain.value = 0.75;
+        } else {
+          filter.type = 'lowpass';
+          filter.frequency.value = 620;
+          gain.gain.value = 0.45;
+        }
 
         source.connect(filter);
         filter.connect(gain);
@@ -2439,15 +2630,32 @@
         source.start(0);
 
         ambientSoundNode = source;
+        ambientFilterNode = filter;
         ambientGainNode = gain;
         ambientSoundActive = true;
 
+        const btnIcon = document.getElementById('ambient-audio-icon');
+        const btnLabel = document.getElementById('ambient-audio-label');
         if (btnIcon) btnIcon.className = 'ph-fill ph-speaker-high text-emerald-300 text-sm';
-        if (btnLabel) btnLabel.textContent = 'Lluvia ON';
-        showToast('🌧️ Lluvia suave ambiental activada');
+        if (btnLabel) btnLabel.textContent = `${AMBIENT_SOUND_NAMES[ambientSoundMode]} ON`;
+        showToast(`🔊 ${AMBIENT_SOUND_NAMES[ambientSoundMode]} ambiental activado`);
       } catch (err) {
         showToast('No se pudo activar el sonido ambiental');
       }
+    }
+
+    function toggleAmbientAudio() {
+      const btnIcon = document.getElementById('ambient-audio-icon');
+      const btnLabel = document.getElementById('ambient-audio-label');
+
+      if (ambientSoundActive) {
+        stopAmbientAudio();
+        if (btnIcon) btnIcon.className = 'ph-fill ph-speaker-slash text-amber-300 text-sm';
+        if (btnLabel) btnLabel.textContent = 'Sonido';
+        showToast('🔇 Sonido ambiental pausado');
+        return;
+      }
+      startAmbientAudio();
     }
 
     // ---------------------------------------------------------
