@@ -164,6 +164,28 @@
       cursor: grabbing;
       transform: scale(1.04);
     }
+
+    /* En móvil, las ventanas ocupan el ancho disponible y se apilan mediante JS. */
+    @media (max-width: 700px) {
+      #room-canvas {
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      #top-bar {
+        width: calc(100% - 12px);
+        max-width: none;
+        padding: 0.5rem;
+      }
+
+      #bottom-dock {
+        max-width: calc(100% - 12px);
+      }
+
+      .draggable-window {
+        max-width: calc(100vw - 16px);
+      }
+    }
   </style>
 </head>
 <body id="app-body" class="relative w-full h-full overflow-hidden transition-colors duration-500 bg-theme-night text-amber-50">
@@ -1020,8 +1042,36 @@
       }
     }
 
+    function getStoredNickname() {
+      try {
+        return (localStorage.getItem('cozyroom_nickname') || '').trim().slice(0, 16);
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function requestNickname() {
+      if (myNickname) return myNickname;
+
+      let entered = '';
+      try {
+        entered = window.prompt('¿Cómo quieres que aparezca tu nombre en la sala?', '');
+      } catch (e) {
+        // Algunos navegadores bloquean los diálogos; usamos un nombre neutro.
+      }
+
+      myNickname = String(entered || '').trim().slice(0, 16) || 'Amiga';
+      try {
+        localStorage.setItem('cozyroom_nickname', myNickname);
+      } catch (e) {
+        // Continuar con el nombre de esta sesión aunque no haya almacenamiento.
+      }
+      return myNickname;
+    }
+
     let currentRoomId = getInitialRoomId();
     const myUserId = getOrCreateUserId();
+    let myNickname = getStoredNickname();
     let activeAvatarId = myUserId;
 
     function updateConnectionBadge(isOnline) {
@@ -1200,6 +1250,54 @@
       widget.classList.toggle('hidden', !isHidden);
       if (isHidden) bringToFront(widget);
       if (dockBtn) dockBtn.classList.toggle('opacity-45', !isHidden);
+      requestAnimationFrame(applyResponsiveLayout);
+    }
+
+    const desktopWidgetStyles = new Map();
+    let mobileLayoutActive = false;
+
+    function applyResponsiveLayout() {
+      const canvas = document.getElementById('room-canvas');
+      const topBar = document.getElementById('top-bar');
+      const widgets = Array.from(document.querySelectorAll('.draggable-window'));
+      const isMobile = window.innerWidth <= 700;
+      if (!canvas || !widgets.length) return;
+
+      if (!isMobile) {
+        if (mobileLayoutActive) {
+          widgets.forEach((widget) => {
+            const originalStyle = desktopWidgetStyles.get(widget.id);
+            if (originalStyle !== undefined) widget.setAttribute('style', originalStyle);
+          });
+          canvas.style.minHeight = '';
+          mobileLayoutActive = false;
+        }
+        return;
+      }
+
+      if (!mobileLayoutActive) {
+        widgets.forEach((widget) => {
+          desktopWidgetStyles.set(widget.id, widget.getAttribute('style') || '');
+        });
+        mobileLayoutActive = true;
+      }
+
+      let nextTop = Math.max(100, Math.ceil((topBar ? topBar.getBoundingClientRect().bottom : 88) + 12));
+      const mobileWidth = Math.max(280, window.innerWidth - 16);
+
+      widgets.forEach((widget) => {
+        if (widget.classList.contains('hidden')) return;
+
+        widget.style.width = `${mobileWidth}px`;
+        widget.style.maxWidth = `${mobileWidth}px`;
+        widget.style.left = '8px';
+        widget.style.right = 'auto';
+        widget.style.top = `${nextTop}px`;
+        widget.style.bottom = 'auto';
+        nextTop += widget.getBoundingClientRect().height + 12;
+      });
+
+      canvas.style.minHeight = `${Math.max(window.innerHeight, nextTop + 88)}px`;
     }
 
     // ---------------------------------------------------------
@@ -1258,7 +1356,7 @@
     let participants = [
       {
         id: myUserId,
-        name: 'Tú',
+        name: myNickname || 'Amiga',
         isLocal: true,
         badge: '🧸',
         x: 42,
@@ -1688,6 +1786,12 @@
       const current = getActiveAvatar();
       if (!current) return;
       current.name = val.trim() || 'Amiga';
+      if (current.id === myUserId) {
+        myNickname = current.name;
+        try {
+          localStorage.setItem('cozyroom_nickname', myNickname);
+        } catch (e) {}
+      }
       renderAllRoomAvatars();
       syncAvatarToFirebase(current);
     }
@@ -2139,10 +2243,10 @@
       const text = input.value.trim();
       if (!text) return;
 
-      const localUser = participants.find((p) => p.id === myUserId) || participants[0] || { name: 'Tú', color: '#fde68a' };
+      const localUser = participants.find((p) => p.id === myUserId) || participants[0] || { name: myNickname || 'Amiga', color: '#fde68a' };
       const msgObj = {
         senderId: myUserId,
-        sender: localUser.name || 'Tú',
+        sender: localUser.name || myNickname || 'Amiga',
         color: localUser.color || '#fde68a',
         text,
         timestamp: Date.now()
@@ -2205,7 +2309,7 @@
       mountEl.innerHTML = '';
 
       const roomSlug = `CozyRoom-${sanitizeRoomSlug(currentRoomId)}`;
-      const localUser = participants.find((p) => p.id === myUserId) || { name: 'Amiga Cozy' };
+      const localUser = participants.find((p) => p.id === myUserId) || { name: myNickname || 'Amiga' };
 
       const apiReady = await loadJitsiExternalApi();
       if (apiReady && window.JitsiMeetExternalAPI) {
@@ -2215,7 +2319,7 @@
             parentNode: mountEl,
             width: '100%',
             height: '100%',
-            userInfo: { displayName: localUser.name || 'Amiga Cozy' },
+            userInfo: { displayName: localUser.name || myNickname || 'Amiga' },
             configOverwrite: {
               prejoinPageEnabled: false,
               startWithAudioMuted: false,
@@ -2754,7 +2858,7 @@
       if (!myAvatar) {
         myAvatar = {
           id: myUserId,
-          name: 'Tú',
+          name: myNickname || 'Amiga',
           isLocal: true,
           badge: '🧸',
           x: 42,
@@ -2768,6 +2872,7 @@
         };
         participants = [myAvatar];
       }
+      myAvatar.name = myNickname || myAvatar.name || 'Amiga';
       syncAvatarToFirebase(myAvatar);
 
       // 1. Registrar presencia real y escuchar solo usuarios conectados
@@ -2888,6 +2993,10 @@
     // ---------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
       try {
+        requestNickname();
+        const localAvatar = participants.find((p) => p.id === myUserId);
+        if (localAvatar) localAvatar.name = myNickname;
+
         const roomInput = document.getElementById('room-name-input');
         if (roomInput) roomInput.value = currentRoomId;
 
@@ -2916,6 +3025,9 @@
           renderOrUpdateDecorElement({ id: 'decor_init_2', type: 'easel', x: 36, y: 56 });
           renderOrUpdateDecorElement({ id: 'decor_init_3', type: 'sylvanian-bunny', x: 57, y: 58 });
         }
+
+        applyResponsiveLayout();
+        window.addEventListener('resize', applyResponsiveLayout);
       } catch (err) {
         console.error('Error al iniciar Mi Rincón Cozy:', err);
         updateConnectionBadge(false);
