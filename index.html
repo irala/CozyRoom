@@ -67,6 +67,13 @@
         inset 0 1px 0 0 rgba(255, 255, 255, 0.88);
     }
 
+    /* Algunas clases w-18/h-18 no existen en Tailwind y dejaban SVG sin tamaño. */
+    #decor-catalog-grid svg {
+      width: 4.5rem;
+      height: 4.5rem;
+      display: block;
+    }
+
     /* 6 Fondos predefinidos */
     .bg-theme-night {
       background-color: #110e19;
@@ -276,7 +283,8 @@
       >
         <option value="rain">🌧️ Lluvia</option>
         <option value="river">🌊 Río</option>
-        <option value="birds">🐦 Pájaros</option>
+        <option value="waves">🌊 Olas</option>
+        <option value="forest">🌲 Bosque</option>
         <option value="asmr">✨ ASMR</option>
       </select>
 
@@ -1069,7 +1077,13 @@
 
     function getStoredNickname() {
       try {
-        return (localStorage.getItem('cozyroom_nickname') || '').trim().slice(0, 16);
+        const storedNickname = (localStorage.getItem('cozyroom_nickname') || '').trim().slice(0, 16);
+        // Limpiar el nombre de prueba que quedó guardado durante las comprobaciones.
+        if (storedNickname.toLowerCase() === 'tester') {
+          localStorage.removeItem('cozyroom_nickname');
+          return '';
+        }
+        return storedNickname;
       } catch (e) {
         return '';
       }
@@ -1616,15 +1630,18 @@
       layer.innerHTML = '';
 
       participants.forEach((p) => {
+        const isLocalAvatar = p.id === myUserId;
         const wrapper = document.createElement('div');
         wrapper.id = `room-avatar-${p.id}`;
-        wrapper.className = 'draggable-entity pointer-events-auto absolute flex flex-col items-center';
+        wrapper.className = `${isLocalAvatar ? 'draggable-entity ' : ''}pointer-events-auto absolute flex flex-col items-center`;
         const pxLeft = Math.max(8, Math.min(window.innerWidth - 130, Math.round((window.innerWidth * (Number(p.x) || 45)) / 100)));
         const pxTop = Math.max(64, Math.min(window.innerHeight - 170, Math.round((window.innerHeight * (Number(p.y) || 42)) / 100)));
         wrapper.style.left = `${pxLeft}px`;
         wrapper.style.top = `${pxTop}px`;
         wrapper.style.zIndex = p.id === activeAvatarId ? '42' : '36';
-        wrapper.title = `${p.name} · Arrastra por la habitación o pulsa para vestir`;
+        wrapper.title = isLocalAvatar
+          ? `${p.name} · Arrastra tu muñeco por la habitación o pulsa para vestir`
+          : `${p.name} · Muñeco de otra persona`;
 
         const bubble = document.createElement('div');
         bubble.className = 'mb-1 px-3 py-0.5 rounded-full backdrop-blur-md bg-stone-900/90 text-amber-50 border border-amber-200/25 text-[11px] font-semibold shadow-md flex items-center gap-1 whitespace-nowrap animate-float-cozy';
@@ -1652,22 +1669,25 @@
         wrapper.appendChild(tagBtn);
 
         layer.appendChild(wrapper);
-        enableDrag(wrapper, wrapper, {
-          onDragStart: () => {
-            draggingAvatarId = p.id;
-          },
-          onDragMove: (leftPx, topPx) => {
-            p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
-            p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
-            syncAvatarToFirebase(p);
-          },
-          onDragEnd: (leftPx, topPx) => {
-            p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
-            p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
-            draggingAvatarId = null;
-            syncAvatarToFirebase(p);
-          }
-        });
+        if (isLocalAvatar) {
+          enableDrag(wrapper, wrapper, {
+            onDragStart: () => {
+              draggingAvatarId = p.id;
+            },
+            onDragMove: (leftPx, topPx) => {
+              p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+              p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+              syncAvatarToFirebase(p);
+            },
+            onDragEnd: (leftPx, topPx) => {
+              p.x = Number(((leftPx / Math.max(1, window.innerWidth)) * 100).toFixed(2));
+              p.y = Number(((topPx / Math.max(1, window.innerHeight)) * 100).toFixed(2));
+              draggingAvatarId = null;
+              syncAvatarToFirebase(p);
+              renderAllRoomAvatars();
+            }
+          });
+        }
       });
 
       if (badge) {
@@ -2510,7 +2530,8 @@
     const AMBIENT_SOUND_NAMES = {
       rain: 'Lluvia',
       river: 'Río',
-      birds: 'Pájaros',
+      waves: 'Olas',
+      forest: 'Bosque',
       asmr: 'ASMR'
     };
 
@@ -2534,26 +2555,10 @@
     }
 
     function createAmbientBuffer(mode) {
-      const duration = mode === 'birds' ? 8 : 3;
+      const duration = mode === 'waves' || mode === 'forest' ? 8 : 3;
       const bufferSize = audioCtx.sampleRate * duration;
       const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
       const output = buffer.getChannelData(0);
-
-      if (mode === 'birds') {
-        // Silencio con pequeños trinos sintéticos y suaves, sin voces ni archivos externos.
-        for (let chirp = 0; chirp < 7; chirp++) {
-          const start = Math.floor((0.35 + Math.random() * 7.2) * audioCtx.sampleRate);
-          const length = Math.floor((0.18 + Math.random() * 0.18) * audioCtx.sampleRate);
-          const baseFrequency = 1500 + Math.random() * 1700;
-          for (let i = 0; i < length && start + i < output.length; i++) {
-            const progress = i / length;
-            const envelope = Math.sin(Math.PI * progress) * 0.16;
-            const frequency = baseFrequency + Math.sin(progress * Math.PI * 2) * 500;
-            output[start + i] += Math.sin((Math.PI * 2 * frequency * i) / audioCtx.sampleRate) * envelope;
-          }
-        }
-        return buffer;
-      }
 
       let b0 = 0;
       let b1 = 0;
@@ -2572,7 +2577,13 @@
         b5 = -0.7616 * b5 - white * 0.0168980;
         const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
         b6 = white * 0.115926;
-        output[i] = pink * (mode === 'asmr' ? 0.025 : 0.04);
+        const waveSwell = mode === 'waves'
+          ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin((i / audioCtx.sampleRate) * Math.PI * 0.9))
+          : 1;
+        const forestGust = mode === 'forest'
+          ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin((i / audioCtx.sampleRate) * Math.PI * 0.35))
+          : 1;
+        output[i] = pink * (mode === 'asmr' ? 0.025 : 0.04) * waveSwell * forestGust;
       }
       return buffer;
     }
@@ -2614,10 +2625,15 @@
           filter.frequency.value = 3600;
           filter.Q.value = 0.7;
           gain.gain.value = 0.28;
-        } else if (ambientSoundMode === 'birds') {
+        } else if (ambientSoundMode === 'waves') {
           filter.type = 'lowpass';
-          filter.frequency.value = 5200;
-          gain.gain.value = 0.75;
+          filter.frequency.value = 1450;
+          gain.gain.value = 0.52;
+        } else if (ambientSoundMode === 'forest') {
+          filter.type = 'bandpass';
+          filter.frequency.value = 900;
+          filter.Q.value = 0.45;
+          gain.gain.value = 0.38;
         } else {
           filter.type = 'lowpass';
           filter.frequency.value = 620;
@@ -3093,8 +3109,10 @@
         activePresenceIds = new Set(Object.keys(presence));
         activePresenceIds.add(myUserId);
         participants = participants.filter((p) => activePresenceIds.has(p.id));
-        renderAllRoomAvatars();
-        renderWardrobeUI();
+        if (!draggingAvatarId) {
+          renderAllRoomAvatars();
+          renderWardrobeUI();
+        }
       };
       presenceRef.on('value', onPresenceValue);
       roomListeners.push({ ref: presenceRef, eventType: 'value', handler: onPresenceValue });
@@ -3140,8 +3158,10 @@
         if (!participants.some((p) => p.id === activeAvatarId)) {
           activeAvatarId = myUserId;
         }
-        renderAllRoomAvatars();
-        renderWardrobeUI();
+        if (!draggingAvatarId) {
+          renderAllRoomAvatars();
+          renderWardrobeUI();
+        }
       };
       avatarsRef.on('value', onAvatarsValue);
       roomListeners.push({ ref: avatarsRef, eventType: 'value', handler: onAvatarsValue });
