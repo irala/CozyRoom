@@ -1,0 +1,4 @@
+interface:
+  display_name: "Subir cambios"
+  short_description: "Revisa, commitea y sube cambios Git"
+  default_prompt: "Usa $subir-cambios para revisar y subir los cambios actuales de este repositorio."

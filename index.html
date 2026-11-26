@@ -983,6 +983,8 @@
     let db = null;
     let firebaseConnected = false;
     let roomListeners = [];
+    let activePresenceIds = new Set();
+    let activePresenceRef = null;
 
     function sanitizeRoomSlug(raw) {
       const cleaned = String(raw || '')
@@ -1520,7 +1522,8 @@
       });
 
       if (badge) {
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>${participants.length} en sala</span>`;
+        const memberCount = activePresenceIds.size || participants.length;
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>${memberCount} en sala</span>`;
       }
     }
 
@@ -2722,12 +2725,18 @@
     // 10. CONEXIÓN EN TIEMPO REAL CON FIREBASE
     // ---------------------------------------------------------
     function detachRoomListeners() {
+      if (activePresenceRef) {
+        activePresenceRef.onDisconnect().cancel().catch(() => {});
+        activePresenceRef.remove().catch(() => {});
+        activePresenceRef = null;
+      }
       roomListeners.forEach(({ ref, eventType, handler }) => {
         try {
           ref.off(eventType, handler);
         } catch (e) {}
       });
       roomListeners = [];
+      activePresenceIds = new Set([myUserId]);
     }
 
     function connectToRoom(roomId) {
@@ -2761,12 +2770,43 @@
       }
       syncAvatarToFirebase(myAvatar);
 
-      // 1. Escuchar avatares de la sala
+      // 1. Registrar presencia real y escuchar solo usuarios conectados
+      const myPresenceRef = roomRef(`presence/${myUserId}`);
+      const presenceRef = roomRef('presence');
+      activePresenceRef = myPresenceRef;
+
+      const onPresenceValue = (snapshot) => {
+        const presence = snapshot.val() || {};
+        activePresenceIds = new Set(Object.keys(presence));
+        activePresenceIds.add(myUserId);
+        participants = participants.filter((p) => activePresenceIds.has(p.id));
+        renderAllRoomAvatars();
+        renderWardrobeUI();
+      };
+      presenceRef.on('value', onPresenceValue);
+      roomListeners.push({ ref: presenceRef, eventType: 'value', handler: onPresenceValue });
+
+      const connectedRef = db.ref('.info/connected');
+      const onConnected = (snapshot) => {
+        const connected = snapshot.val() === true;
+        updateConnectionBadge(connected);
+        if (!connected) return;
+
+        myPresenceRef.onDisconnect().remove()
+          .then(() => myPresenceRef.set({
+            id: myUserId,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+          }))
+          .catch((error) => console.warn('No se pudo registrar la presencia:', error));
+      };
+      connectedRef.on('value', onConnected);
+      roomListeners.push({ ref: connectedRef, eventType: 'value', handler: onConnected });
+
+      // 2. Escuchar avatares de la sala
       const avatarsRef = roomRef('avatars');
       const onAvatarsValue = (snapshot) => {
         const val = snapshot.val() || {};
-        const remoteList = Object.values(val);
-        if (remoteList.length === 0) return;
+        const remoteList = Object.values(val).filter((item) => activePresenceIds.has(item.id));
 
         participants = remoteList.map((item) => {
           const existing = participants.find((p) => p.id === item.id);
@@ -2780,6 +2820,10 @@
           };
         });
 
+        if (!participants.some((p) => p.id === myUserId)) {
+          participants.unshift(myAvatar);
+        }
+
         if (!participants.some((p) => p.id === activeAvatarId)) {
           activeAvatarId = myUserId;
         }
@@ -2789,7 +2833,7 @@
       avatarsRef.on('value', onAvatarsValue);
       roomListeners.push({ ref: avatarsRef, eventType: 'value', handler: onAvatarsValue });
 
-      // 2. Escuchar decoración compartida
+      // 3. Escuchar decoración compartida
       const decorRef = roomRef('decor');
       const onDecorValue = (snapshot) => {
         const val = snapshot.val() || {};
@@ -2808,7 +2852,7 @@
       decorRef.on('value', onDecorValue);
       roomListeners.push({ ref: decorRef, eventType: 'value', handler: onDecorValue });
 
-      // 3. Escuchar mensajes del chat (últimos 50)
+      // 4. Escuchar mensajes del chat (últimos 50)
       const chatRef = roomRef('chat').limitToLast(50);
       const onChatValue = (snapshot) => {
         const val = snapshot.val() || {};
@@ -2818,7 +2862,7 @@
       chatRef.on('value', onChatValue);
       roomListeners.push({ ref: chatRef, eventType: 'value', handler: onChatValue });
 
-      // 4. Escuchar vídeo sincronizado de YouTube
+      // 5. Escuchar vídeo sincronizado de YouTube
       const videoRef = roomRef('video');
       const onVideoValue = (snapshot) => {
         const val = snapshot.val();
@@ -2827,7 +2871,7 @@
       videoRef.on('value', onVideoValue);
       roomListeners.push({ ref: videoRef, eventType: 'value', handler: onVideoValue });
 
-      // 5. Escuchar tema de fondo compartido
+      // 6. Escuchar tema de fondo compartido
       const themeRef = roomRef('theme');
       const onThemeValue = (snapshot) => {
         const val = snapshot.val();
@@ -2864,10 +2908,6 @@
             firebase.initializeApp(firebaseConfig);
           }
           db = firebase.database();
-
-          db.ref('.info/connected').on('value', (snap) => {
-            updateConnectionBadge(Boolean(snap.val()));
-          });
 
           connectToRoom(currentRoomId);
         } else {
